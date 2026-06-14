@@ -123,7 +123,7 @@ button:not(:disabled):active {
 
 .app-shell {
   display: grid;
-  grid-template-columns: minmax(340px, 430px) minmax(0, 1fr);
+  grid-template-columns: minmax(320px, 390px) minmax(0, 1fr);
   min-height: 100vh;
 }
 
@@ -609,10 +609,10 @@ button:not(:disabled):active {
   position: relative;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 22px;
+  gap: 14px;
   height: 100vh;
   overflow: hidden;
-  padding: 34px;
+  padding: 22px 22px 18px;
 }
 
 .preview-header {
@@ -621,12 +621,12 @@ button:not(:disabled):active {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
+  gap: 14px;
   margin: 0 auto;
-  max-width: 1180px;
-  padding: 14px 18px;
+  max-width: 1040px;
+  padding: 10px 14px;
   border: 1px solid rgba(255, 255, 255, 0.56);
-  border-radius: 22px;
+  border-radius: 20px;
   background: rgba(250, 251, 246, 0.78);
   backdrop-filter: blur(16px);
   box-shadow: 0 14px 40px rgba(44, 64, 53, 0.11);
@@ -635,14 +635,20 @@ button:not(:disabled):active {
 .preview-header h2 {
   margin: 0;
   color: var(--moss-dark);
-  font-size: 18px;
+  font-size: 15px;
   letter-spacing: -0.03em;
 }
 
 .preview-header p {
-  margin: 4px 0 0;
+  margin: 2px 0 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 11px;
+}
+
+.preview-header .button.primary {
+  min-height: 0;
+  padding: 8px 14px;
+  font-size: 12px;
 }
 
 .preview-wrap {

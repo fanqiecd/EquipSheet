@@ -6,6 +6,7 @@ const app = document.querySelector("#app");
 const exportRoot = document.querySelector("#export-root");
 const PREVIEW_PAGE_WIDTH = 1123;
 const PREVIEW_PAGE_HEIGHT = 794;
+const MAX_PREVIEW_SCALE = 0.94;
 
 const layouts = {
   single: "单图大图",
@@ -194,7 +195,7 @@ function updatePreviewScale() {
   const rect = wrap.getBoundingClientRect();
   const horizontalRoom = Math.max(320, rect.width - 12);
   const verticalRoom = Math.max(240, rect.height - 12);
-  previewScale = Math.min(horizontalRoom / PREVIEW_PAGE_WIDTH, verticalRoom / PREVIEW_PAGE_HEIGHT, 1);
+  previewScale = Math.min(horizontalRoom / PREVIEW_PAGE_WIDTH, verticalRoom / PREVIEW_PAGE_HEIGHT, MAX_PREVIEW_SCALE);
   stage.style.setProperty("--preview-scale", previewScale.toFixed(4));
 }
 
