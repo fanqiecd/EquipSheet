@@ -43,7 +43,7 @@ export function createDefaultPage() {
     contactName: "杨女士",
     contactPhone: "19520491087",
     qrImage: "",
-    imageLayout: "stack",
+    imageLayout: "hero",
     fields: defaultFields.map((field) => ({ ...field })),
     images: [],
     terms: defaultTerms.map((term) => ({ ...term })),
@@ -135,27 +135,22 @@ function lerp(from, to, t) {
 }
 
 export function getSideDensityMetrics(fields, terms) {
-  const fieldCount = Math.max(1, Array.isArray(fields) ? fields.length : 0);
-  const termCount = Math.max(0, Array.isArray(terms) ? terms.length : 0);
-  const burden = fieldCount + Math.max(0, termCount - 3) * 0.7;
-  const t = clamp((burden - 9.2) / 5.2, 0, 1);
-
+  // 返回固定值，确保字段高度统一
   return {
-    // 字段和条款一起决定压缩程度，避免英文副行被底部内容挤掉。
-    detailGap: lerp(10, 5, t),
-    detailFontSize: lerp(18, 15.6, t),
-    detailLineHeight: lerp(1.08, 1.05, t),
-    detailBulletSize: lerp(18, 15.6, t),
-    detailCopyMinHeight: lerp(36, 26, t),
-    detailCopyGap: lerp(2, 0.5, t),
-    detailEnFontSize: lerp(14.5, 12.2, t),
-    detailEnLineHeight: lerp(1.08, 1.03, t),
-    termGap: lerp(6, 4, t),
-    termLabelWidth: lerp(112, 100, t),
-    termLabelFontSize: lerp(10, 9, t),
-    termValueFontSize: lerp(13, 11.5, t),
-    termPaddingX: lerp(12, 10, t),
-    termPaddingY: lerp(8, 6, t),
-    termLineHeight: lerp(1.18, 1.08, t),
+    detailGap: 10,
+    detailFontSize: 18,
+    detailLineHeight: 1.08,
+    detailBulletSize: 18,
+    detailCopyMinHeight: 36,
+    detailCopyGap: 2,
+    detailEnFontSize: 14.5,
+    detailEnLineHeight: 1.08,
+    termGap: 6,
+    termLabelWidth: 112,
+    termLabelFontSize: 10,
+    termValueFontSize: 13,
+    termPaddingX: 12,
+    termPaddingY: 8,
+    termLineHeight: 1.18,
   };
 }

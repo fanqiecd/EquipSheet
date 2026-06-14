@@ -18,6 +18,7 @@ import {
 } from "./document-model.js";
 
 const showBackToTop = ref(false);
+const isTranslating = ref(false);
 
 function handleScroll() {
   showBackToTop.value = window.scrollY > 300;
@@ -28,6 +29,91 @@ function scrollToTop() {
     top: 0,
     behavior: "smooth"
   });
+}
+
+async function translateText(text, from = 'zh-CN', to = 'en-US') {
+  if (!text || !text.trim()) {
+    return '';
+  }
+
+  try {
+    const response = await fetch(
+      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${from}|${to}`
+    );
+    const data = await response.json();
+    
+    if (data.responseStatus === 200 && data.responseData) {
+      return data.responseData.translatedText;
+    }
+    
+    return text;
+  } catch (error) {
+    console.error('翻译失败:', error);
+    return text;
+  }
+}
+
+let translateDebounceTimer = null;
+
+async function handleFieldTranslate(field, type) {
+  if (type === 'zhLabel' && field.zhLabel) {
+    const translated = await translateText(field.zhLabel);
+    field.enLabel = translated;
+    commit();
+  } else if (type === 'zhValue' && field.zhValue) {
+    const translated = await translateText(field.zhValue);
+    field.enValue = translated;
+    commit();
+  }
+}
+
+function debounceTranslate(field, type) {
+  if (translateDebounceTimer) {
+    clearTimeout(translateDebounceTimer);
+  }
+  
+  translateDebounceTimer = setTimeout(() => {
+    handleFieldTranslate(field, type);
+  }, 500);
+}
+
+let productNameTranslateTimer = null;
+let titleTranslateTimer = null;
+
+async function handleProductNameTranslate() {
+  if (activePage.value.productNameZh) {
+    const translated = await translateText(activePage.value.productNameZh);
+    activePage.value.productNameEn = translated;
+    commit();
+  }
+}
+
+async function handleTitleTranslate() {
+  if (activePage.value.titleZh) {
+    const translated = await translateText(activePage.value.titleZh);
+    activePage.value.titleEn = translated;
+    commit();
+  }
+}
+
+function debounceTranslateProductName() {
+  if (productNameTranslateTimer) {
+    clearTimeout(productNameTranslateTimer);
+  }
+  
+  productNameTranslateTimer = setTimeout(() => {
+    handleProductNameTranslate();
+  }, 500);
+}
+
+function debounceTranslateTitle() {
+  if (titleTranslateTimer) {
+    clearTimeout(titleTranslateTimer);
+  }
+  
+  titleTranslateTimer = setTimeout(() => {
+    handleTitleTranslate();
+  }, 500);
 }
 
 // 自定义箭头组件
@@ -585,7 +671,12 @@ onBeforeUnmount(() => {
           <label class="control" data-editor-key="titleZh">
             <span>中文标题</span>
             <n-config-provider :theme-overrides="equipSheetThemeOverrides">
-              <n-input v-model:value="activePage.titleZh" size="medium" @input="commit()" />
+              <n-input 
+                v-model:value="activePage.titleZh" 
+                size="medium" 
+                @input="commit(); debounceTranslateTitle()" 
+                placeholder="可自动翻译"
+              />
             </n-config-provider>
           </label>
           <label class="control" data-editor-key="titleEn">
@@ -636,7 +727,12 @@ onBeforeUnmount(() => {
           <label class="control" data-editor-key="productNameZh">
             <span>产品中文名</span>
             <n-config-provider :theme-overrides="equipSheetThemeOverrides">
-              <n-input v-model:value="activePage.productNameZh" size="medium" @input="commit()" />
+              <n-input 
+                v-model:value="activePage.productNameZh" 
+                size="medium" 
+                @input="commit(); debounceTranslateProductName()" 
+                placeholder="可自动翻译"
+              />
             </n-config-provider>
           </label>
           <label class="control" data-editor-key="productNameEn">
@@ -668,13 +764,23 @@ onBeforeUnmount(() => {
               <label class="control">
                 <span>中文标签</span>
                 <n-config-provider :theme-overrides="equipSheetThemeOverrides">
-                  <n-input v-model:value="field.zhLabel" size="medium" @input="commit()" />
+                  <n-input 
+                    v-model:value="field.zhLabel" 
+                    size="medium" 
+                    @input="commit(); debounceTranslate(field, 'zhLabel')" 
+                    placeholder="可自动翻译"
+                  />
                 </n-config-provider>
               </label>
               <label class="control">
                 <span>中文内容</span>
                 <n-config-provider :theme-overrides="equipSheetThemeOverrides">
-                  <n-input v-model:value="field.zhValue" size="medium" @input="commit()" />
+                  <n-input 
+                    v-model:value="field.zhValue" 
+                    size="medium" 
+                    @input="commit(); debounceTranslate(field, 'zhValue')" 
+                    placeholder="可自动翻译"
+                  />
                 </n-config-provider>
               </label>
               <label class="control">
