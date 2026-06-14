@@ -9,9 +9,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@vicons/ionicons5": "^0.13.0",
+    "@vitejs/plugin-vue": "^6.0.7",
     "html2canvas": "^1.4.1",
     "jspdf": "^3.0.1",
-    "vite": "^7.1.11"
-  },
-  "devDependencies": {}
+    "naive-ui": "^2.44.1",
+    "vite": "^7.1.11",
+    "vue": "^3.5.38"
+  }
 }
