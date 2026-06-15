@@ -231,11 +231,30 @@ button:disabled {
 }
 
 .status-export {
-  margin: -4px 0 10px;
+  display: grid;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 14px;
+  border: 1px solid rgba(20, 83, 45, 0.12);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(231, 246, 236, 0.92), rgba(247, 252, 248, 0.96));
+  box-shadow: 0 10px 24px rgba(15, 76, 52, 0.08);
 }
 
 .status-export__button {
   width: 100%;
+}
+
+.status-export__stage {
+  margin: 0;
+  color: var(--accent-deep);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.status-export__progress {
+  min-height: 18px;
 }
 
 .editor-card {
@@ -368,12 +387,9 @@ details[open] > .panel-summary .panel-toggle-btn::before {
 
 .page-pill span {
   min-width: 0;
-  overflow: hidden;
   font-size: 14px;
   font-weight: 900;
   line-height: 1.1;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .page-pill small {
@@ -381,9 +397,6 @@ details[open] > .panel-summary .panel-toggle-btn::before {
   font-size: 10.5px;
   font-weight: 700;
   line-height: 1.1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .page-pill--active {
@@ -762,6 +775,16 @@ select:focus {
   letter-spacing: 0.02em;
 }
 
+.visually-hidden-file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .textarea {
   min-height: 96px;
   resize: vertical;
@@ -873,15 +896,7 @@ select:focus {
 }
 
 .media-card__meta strong {
-  display: -webkit-box;
   min-width: 0;
-  overflow: hidden;
-  white-space: normal;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
   font-size: 15px;
   line-height: 1.18;
 }
@@ -1097,9 +1112,6 @@ select:focus {
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .sales-code {
@@ -1128,7 +1140,6 @@ select:focus {
 .product-line {
   font-size: 20px;
   font-weight: 800;
-  white-space: nowrap;
 }
 
 .product-line--en {
@@ -1437,9 +1448,6 @@ select:focus {
   font-size: 1em;
   letter-spacing: -0.01em;
   min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
 }
 
 .detail-en {
@@ -1448,9 +1456,6 @@ select:focus {
   line-height: 1.08;
   font-weight: 700;
   min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
   transition: color 0.24s ease, opacity 0.24s ease, transform 0.24s ease;
   opacity: 1;
 }
@@ -1573,6 +1578,27 @@ select:focus {
   line-height: 1;
   position: relative;
   z-index: 1;
+}
+
+.page-pill .n-ellipsis,
+.sheet-title-subline .n-ellipsis,
+.product-line .n-ellipsis,
+.detail-main .n-ellipsis,
+.detail-en .n-ellipsis,
+.term-label .n-ellipsis,
+.term-value .n-ellipsis,
+.media-card__meta .n-ellipsis {
+  min-width: 0;
+}
+
+.page-pill .n-ellipsis {
+  display: block;
+}
+
+.page-pill .n-ellipsis__content {
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
 }
 
 .term--danger {

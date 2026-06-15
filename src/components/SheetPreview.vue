@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from "vue";
+import { NEllipsis } from "naive-ui";
 
 const props = defineProps({
   page: {
@@ -93,7 +94,7 @@ function hasPreviewValue(field, labelKey, valueKey) {
             title="点击编辑英文标题"
             @click="emit('focus-page-field', 'titleEn')"
           >
-            {{ page.titleEn }}
+            <n-ellipsis>{{ page.titleEn }}</n-ellipsis>
           </button>
           <button
             class="preview-jump sales-code"
@@ -111,9 +112,9 @@ function hasPreviewValue(field, labelKey, valueKey) {
             title="点击编辑产品名称"
             @click="emit('focus-page-field', 'productNameZh')"
           >
-            <span class="product-line">{{ page.productNameZh }}</span>
+            <n-ellipsis class="product-line">{{ page.productNameZh }}</n-ellipsis>
             <span class="product-divider"> / </span>
-            <span class="product-line product-line--en">{{ page.productNameEn }}</span>
+            <n-ellipsis class="product-line product-line--en">{{ page.productNameEn }}</n-ellipsis>
           </button>
         </div>
 
@@ -194,10 +195,10 @@ function hasPreviewValue(field, labelKey, valueKey) {
               @click="emit('focus-field', index)"
             >
               <div class="detail-copy">
-                <div class="detail-main">{{ getPreviewLine(field, "zhLabel", "zhValue", "：") }}</div>
-                <div class="detail-en" :class="{ 'detail-en-empty': !hasPreviewValue(field, 'enLabel', 'enValue') }">
+                <n-ellipsis class="detail-main">{{ getPreviewLine(field, "zhLabel", "zhValue", "：") }}</n-ellipsis>
+                <n-ellipsis class="detail-en" :class="{ 'detail-en-empty': !hasPreviewValue(field, 'enLabel', 'enValue') }">
                   {{ getPreviewLine(field, "enLabel", "enValue", ": ") || "\u00a0" }}
-                </div>
+                </n-ellipsis>
               </div>
             </button>
           </div>
@@ -212,8 +213,8 @@ function hasPreviewValue(field, labelKey, valueKey) {
               title="点击编辑这条底部条款"
               @click="emit('focus-term', index)"
             >
-              <span class="term-label">{{ term.label }}</span>
-              <span class="term-value">{{ term.text }}</span>
+              <n-ellipsis class="term-label">{{ term.label }}</n-ellipsis>
+              <n-ellipsis class="term-value">{{ term.text }}</n-ellipsis>
             </button>
           </div>
         </div>

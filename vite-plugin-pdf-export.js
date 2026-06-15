@@ -81,11 +81,26 @@ async function handleExportRequest(request, response) {
 export function pdfExportPlugin() {
   return {
     name: "equip-sheet-pdf-export",
+    apply: "serve",
     configureServer(server) {
-      server.middlewares.use(EXPORT_ROUTE, handleExportRequest);
+      server.middlewares.use(async (request, response, next) => {
+        if (request.url?.split("?")[0] !== EXPORT_ROUTE) {
+          next();
+          return;
+        }
+
+        await handleExportRequest(request, response);
+      });
     },
     configurePreviewServer(server) {
-      server.middlewares.use(EXPORT_ROUTE, handleExportRequest);
+      server.middlewares.use(async (request, response, next) => {
+        if (request.url?.split("?")[0] !== EXPORT_ROUTE) {
+          next();
+          return;
+        }
+
+        await handleExportRequest(request, response);
+      });
     },
   };
 }

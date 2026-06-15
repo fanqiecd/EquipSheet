@@ -1,6 +1,6 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, toRaw, h } from "vue";
-import { NSelect, NConfigProvider, NIcon, NInput } from "naive-ui";
+import { NSelect, NConfigProvider, NIcon, NInput, NEllipsis, NProgress } from "naive-ui";
 import { ChevronDownOutline, ArrowUpOutline } from "@vicons/ionicons5";
 import { equipSheetThemeOverrides } from "./naive-theme.js";
 import SheetPreview from "./components/SheetPreview.vue";
@@ -279,6 +279,8 @@ const toneOptions = [
 ]
 
 const isExporting = ref(false);
+const exportProgress = ref(0);
+const exportStage = ref("");
 const statusMessage = ref("已准备好");
 const switchNotice = ref("");
 const SHEET_PAGE_HEIGHT = 794;
@@ -294,6 +296,7 @@ const activePanel = reactive({
 
 const appState = reactive(createDefaultState());
 const exportRootRef = ref(null);
+const importFileInputRef = ref(null);
 const pageListRef = ref([]);
 const previewViewportRef = ref(null);
 const fieldCardRefs = ref({});
@@ -304,6 +307,7 @@ let noticeTimer = 0;
 let focusTimer = 0;
 let unhighlightTimer = 0;
 let afterPrintHandler = null;
+let exportProgressTimer = 0;
 
 const activePage = computed(() => {
   return appState.pages.find((page) => page.id === appState.activePageId) ?? appState.pages[0];
@@ -341,6 +345,51 @@ function setStatus(message) {
   statusMessage.value = message;
 }
 
+function stopExportProgressMotion() {
+  window.clearInterval(exportProgressTimer);
+  exportProgressTimer = 0;
+}
+
+function startExportProgressMotion(target = 92) {
+  stopExportProgressMotion();
+
+  exportProgressTimer = window.setInterval(() => {
+    if (exportProgress.value >= target) {
+      stopExportProgressMotion();
+      return;
+    }
+
+    const distance = target - exportProgress.value;
+    exportProgress.value = Math.min(target, exportProgress.value + Math.max(1, Math.round(distance * 0.12)));
+  }, 360);
+}
+
+function updateExportProgress(current, total, message) {
+  exportStage.value = message;
+
+  if (message.includes("加载字体")) {
+    exportProgress.value = Math.max(exportProgress.value, 8);
+    return;
+  }
+
+  if (message.includes("提交")) {
+    exportProgress.value = Math.max(exportProgress.value, 18);
+    startExportProgressMotion();
+    return;
+  }
+
+  if (message.includes("保存")) {
+    stopExportProgressMotion();
+    exportProgress.value = Math.max(exportProgress.value, 96);
+    return;
+  }
+
+  if (current >= total && total > 0) {
+    stopExportProgressMotion();
+    exportProgress.value = 100;
+  }
+}
+
 function scheduleSave() {
   window.clearTimeout(saveTimer);
   setStatus("正在自动保存...");
@@ -361,6 +410,13 @@ function commit(message) {
     setStatus(message);
   }
   scheduleSave();
+}
+
+function replaceDocumentState(nextState) {
+  appState.version = nextState.version;
+  appState.activePageId = nextState.activePageId;
+  appState.pages.splice(0, appState.pages.length, ...nextState.pages);
+  resetAutoTranslationTracking();
 }
 
 function showSwitchNotice(message) {
@@ -580,12 +636,57 @@ function clearPage() {
 async function resetDocument() {
   await clearDocument();
   const next = createDefaultState();
-  appState.version = next.version;
-  appState.activePageId = next.activePageId;
-  appState.pages.splice(0, appState.pages.length, ...next.pages);
-  resetAutoTranslationTracking();
+  replaceDocumentState(next);
   setStatus("已恢复默认模板");
   scheduleSave();
+}
+
+function exportJson() {
+  const snapshot = cloneDocumentState(toRaw(appState));
+  const blob = new Blob([JSON.stringify(snapshot, null, 2)], {
+    type: "application/json;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const date = new Date().toISOString().slice(0, 10);
+
+  link.href = url;
+  link.download = `设备资料单-${date}.json`;
+  link.click();
+
+  URL.revokeObjectURL(url);
+  setStatus("JSON 已导出");
+}
+
+function openJsonImport() {
+  importFileInputRef.value?.click();
+}
+
+async function importJson(event) {
+  const file = event.target.files?.[0];
+
+  if (!file) {
+    return;
+  }
+
+  try {
+    const parsed = JSON.parse(await file.text());
+
+    if (!parsed || !Array.isArray(parsed.pages) || !parsed.pages.length) {
+      throw new Error("JSON 中没有可导入的页面数据");
+    }
+
+    const next = normalizeState(parsed);
+    replaceDocumentState(next);
+    await saveDocument(cloneDocumentState(toRaw(appState)));
+    setStatus(`已导入 JSON：${next.pages.length} 页`);
+    showSwitchNotice(`已导入 JSON：${next.pages.length} 页`);
+  } catch (error) {
+    console.error(error);
+    setStatus("JSON 导入失败，请确认文件格式正确");
+  } finally {
+    event.target.value = "";
+  }
 }
 
 function removeQr() {
@@ -682,6 +783,8 @@ async function exportPdf() {
   }
 
   isExporting.value = true;
+  exportProgress.value = 0;
+  exportStage.value = "正在准备页面...";
 
   try {
     await nextTick();
@@ -701,13 +804,19 @@ async function exportPdf() {
       [...stagingRoot.querySelectorAll(".sheet-page")], 
       "设备资料单.pdf",
       (current, total, message) => {
+        updateExportProgress(current, total, message);
         setStatus(message);
       }
     );
-    
+    stopExportProgressMotion();
+    exportProgress.value = 100;
+    exportStage.value = "PDF 导出完成";
     setStatus("PDF 已生成");
   } catch (error) {
     console.error(error);
+    stopExportProgressMotion();
+    exportProgress.value = 0;
+    exportStage.value = "";
     setStatus("PDF 导出失败，可先使用打印另存 PDF 备用");
   } finally {
     if (exportRootRef.value) {
@@ -715,6 +824,7 @@ async function exportPdf() {
       exportRootRef.value.setAttribute("aria-hidden", "true");
     }
     isExporting.value = false;
+    stopExportProgressMotion();
   }
 }
 
@@ -750,6 +860,7 @@ onBeforeUnmount(() => {
   window.clearTimeout(noticeTimer);
   window.clearTimeout(focusTimer);
   window.clearTimeout(unhighlightTimer);
+  stopExportProgressMotion();
 });
 </script>
 
@@ -777,6 +888,9 @@ onBeforeUnmount(() => {
         <button class="action-button" type="button" @click="duplicatePage">复制当前页</button>
         <button class="action-button" type="button" @click="printDocument">打印 / 另存 PDF</button>
         <button class="action-button action-button--danger" type="button" @click="resetDocument">恢复默认模板</button>
+        <button class="action-button" type="button" @click="exportJson">导出 JSON</button>
+        <button class="action-button" type="button" @click="openJsonImport">导入 JSON</button>
+        <input ref="importFileInputRef" class="visually-hidden-file" type="file" accept="application/json,.json" @change="importJson" />
       </section>
 
       <p class="status-line">{{ statusMessage }}</p>
@@ -784,6 +898,19 @@ onBeforeUnmount(() => {
         <button class="action-button action-button--primary status-export__button" type="button" @click="exportPdf">
           {{ isExporting ? "正在导出..." : "导出 PDF" }}
         </button>
+        <p v-if="isExporting" class="status-export__stage">{{ exportStage }}</p>
+        <n-progress
+          v-if="isExporting"
+          class="status-export__progress"
+          type="line"
+          :percentage="exportProgress"
+          :processing="true"
+          :show-indicator="true"
+          indicator-placement="inside"
+          color="#14532d"
+          rail-color="rgba(20, 83, 45, 0.14)"
+          :height="14"
+        />
       </div>
 
       <section class="editor-card">
@@ -804,8 +931,12 @@ onBeforeUnmount(() => {
             type="button"
             @click="selectPage(page.id)"
           >
-            <span>第 {{ index + 1 }} 页</span>
-            <small>{{ page.id === appState.activePageId ? "正在编辑" : page.productNameZh }}</small>
+            <n-ellipsis>
+              <span>第 {{ index + 1 }} 页</span>
+            </n-ellipsis>
+            <n-ellipsis>
+              <small>{{ page.id === appState.activePageId ? "正在编辑" : page.productNameZh }}</small>
+            </n-ellipsis>
           </button>
         </div>
 
@@ -1005,7 +1136,9 @@ onBeforeUnmount(() => {
             <div class="media-card__body">
               <div class="media-card__meta">
                 <p>产品图 {{ index + 1 }}</p>
-                <strong :title="image.name">{{ image.name }}</strong>
+                <n-ellipsis>
+                  <strong>{{ image.name }}</strong>
+                </n-ellipsis>
               </div>
             </div>
             <div class="media-card__controls">
