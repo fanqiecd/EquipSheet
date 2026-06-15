@@ -19,6 +19,15 @@ import {
 
 const showBackToTop = ref(false);
 const isTranslating = ref(false);
+const TRANSLATION_CONTACT_EMAIL = "485627835@qq.com";
+const TRANSLATION_DEBOUNCE_MS = 1000;
+const TRANSLATION_QUOTA_EXCEEDED_MESSAGE = "MyMemory 今日免费翻译额度已用尽，已暂停自动翻译请求";
+const translationCache = new Map();
+const translationPendingRequests = new Map();
+const fieldTranslationState = new WeakMap();
+const titleTranslationSource = ref("");
+const productNameTranslationSource = ref("");
+const isTranslationQuotaExceeded = ref(false);
 
 function handleScroll() {
   showBackToTop.value = window.scrollY > 300;
@@ -32,37 +41,98 @@ function scrollToTop() {
 }
 
 async function translateText(text, from = 'zh-CN', to = 'en-US') {
-  if (!text || !text.trim()) {
-    return '';
+  const normalizedText = normalizeTranslationText(text);
+
+  if (!normalizedText) {
+    return "";
   }
 
+  if (isTranslationQuotaExceeded.value) {
+    return null;
+  }
+
+  const cacheKey = `${from}|${to}|${normalizedText}`;
+
+  if (translationCache.has(cacheKey)) {
+    return translationCache.get(cacheKey);
+  }
+
+  if (translationPendingRequests.has(cacheKey)) {
+    return translationPendingRequests.get(cacheKey);
+  }
+
+  const requestUrl = new URL("https://api.mymemory.translated.net/get");
+  requestUrl.searchParams.set("q", normalizedText);
+  requestUrl.searchParams.set("langpair", `${from}|${to}`);
+  requestUrl.searchParams.set("de", TRANSLATION_CONTACT_EMAIL);
+
+  const requestPromise = (async () => {
   try {
-    const response = await fetch(
-      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${from}|${to}`
-    );
+    const response = await fetch(requestUrl.toString());
     const data = await response.json();
-    
-    if (data.responseStatus === 200 && data.responseData) {
-      return data.responseData.translatedText;
+
+    if (isQuotaExceededResponse(response, data)) {
+      if (!isTranslationQuotaExceeded.value) {
+        isTranslationQuotaExceeded.value = true;
+        setStatus(TRANSLATION_QUOTA_EXCEEDED_MESSAGE);
+      }
+
+      return null;
     }
-    
-    return text;
+
+    if (data.responseStatus === 200 && data.responseData?.translatedText) {
+      const translatedText = normalizeTranslationText(data.responseData.translatedText);
+
+      if (translatedText) {
+        translationCache.set(cacheKey, translatedText);
+        return translatedText;
+      }
+    }
+
+    return null;
   } catch (error) {
     console.error('翻译失败:', error);
-    return text;
+    return null;
+  } finally {
+    translationPendingRequests.delete(cacheKey);
   }
+  })();
+
+  translationPendingRequests.set(cacheKey, requestPromise);
+  return requestPromise;
 }
 
 let translateDebounceTimer = null;
 
 async function handleFieldTranslate(field, type) {
-  if (type === 'zhLabel' && field.zhLabel) {
-    const translated = await translateText(field.zhLabel);
-    field.enLabel = translated;
-    commit();
-  } else if (type === 'zhValue' && field.zhValue) {
-    const translated = await translateText(field.zhValue);
-    field.enValue = translated;
+  const sourceKey = type === "zhLabel" ? "zhLabel" : "zhValue";
+  const targetKey = type === "zhLabel" ? "enLabel" : "enValue";
+  const sourceText = normalizeTranslationText(field[sourceKey]);
+  const trackedState = getFieldTranslationState(field);
+
+  if (!sourceText) {
+    trackedState[sourceKey] = "";
+    if (field[targetKey]) {
+      field[targetKey] = "";
+      commit();
+    }
+    return;
+  }
+
+  if (trackedState[sourceKey] === sourceText || isTranslationQuotaExceeded.value) {
+    return;
+  }
+
+  const translated = await translateText(sourceText);
+
+  if (normalizeTranslationText(field[sourceKey]) !== sourceText) {
+    return;
+  }
+
+  trackedState[sourceKey] = sourceText;
+
+  if (translated && field[targetKey] !== translated) {
+    field[targetKey] = translated;
     commit();
   }
 }
@@ -74,23 +144,67 @@ function debounceTranslate(field, type) {
   
   translateDebounceTimer = setTimeout(() => {
     handleFieldTranslate(field, type);
-  }, 500);
+  }, TRANSLATION_DEBOUNCE_MS);
 }
 
 let productNameTranslateTimer = null;
 let titleTranslateTimer = null;
 
 async function handleProductNameTranslate() {
-  if (activePage.value.productNameZh) {
-    const translated = await translateText(activePage.value.productNameZh);
+  const sourceText = normalizeTranslationText(activePage.value.productNameZh);
+
+  if (!sourceText) {
+    productNameTranslationSource.value = "";
+    if (activePage.value.productNameEn) {
+      activePage.value.productNameEn = "";
+      commit();
+    }
+    return;
+  }
+
+  if (productNameTranslationSource.value === sourceText || isTranslationQuotaExceeded.value) {
+    return;
+  }
+
+  const translated = await translateText(sourceText);
+
+  if (normalizeTranslationText(activePage.value.productNameZh) !== sourceText) {
+    return;
+  }
+
+  productNameTranslationSource.value = sourceText;
+
+  if (translated && activePage.value.productNameEn !== translated) {
     activePage.value.productNameEn = translated;
     commit();
   }
 }
 
 async function handleTitleTranslate() {
-  if (activePage.value.titleZh) {
-    const translated = await translateText(activePage.value.titleZh);
+  const sourceText = normalizeTranslationText(activePage.value.titleZh);
+
+  if (!sourceText) {
+    titleTranslationSource.value = "";
+    if (activePage.value.titleEn) {
+      activePage.value.titleEn = "";
+      commit();
+    }
+    return;
+  }
+
+  if (titleTranslationSource.value === sourceText || isTranslationQuotaExceeded.value) {
+    return;
+  }
+
+  const translated = await translateText(sourceText);
+
+  if (normalizeTranslationText(activePage.value.titleZh) !== sourceText) {
+    return;
+  }
+
+  titleTranslationSource.value = sourceText;
+
+  if (translated && activePage.value.titleEn !== translated) {
     activePage.value.titleEn = translated;
     commit();
   }
@@ -103,7 +217,7 @@ function debounceTranslateProductName() {
   
   productNameTranslateTimer = setTimeout(() => {
     handleProductNameTranslate();
-  }, 500);
+  }, TRANSLATION_DEBOUNCE_MS);
 }
 
 function debounceTranslateTitle() {
@@ -113,7 +227,30 @@ function debounceTranslateTitle() {
   
   titleTranslateTimer = setTimeout(() => {
     handleTitleTranslate();
-  }, 500);
+  }, TRANSLATION_DEBOUNCE_MS);
+}
+
+function normalizeTranslationText(text) {
+  return (text || "").trim();
+}
+
+function getFieldTranslationState(field) {
+  if (!fieldTranslationState.has(field)) {
+    fieldTranslationState.set(field, {
+      zhLabel: "",
+      zhValue: "",
+    });
+  }
+
+  return fieldTranslationState.get(field);
+}
+
+function isQuotaExceededResponse(response, data) {
+  const translatedText = data?.responseData?.translatedText || "";
+
+  return response.status === 429
+    || data?.responseStatus === 429
+    || translatedText.includes("USED ALL AVAILABLE FREE TRANSLATIONS FOR TODAY");
 }
 
 // 自定义箭头组件
@@ -144,6 +281,9 @@ const toneOptions = [
 const isExporting = ref(false);
 const statusMessage = ref("已准备好");
 const switchNotice = ref("");
+const SHEET_PAGE_HEIGHT = 794;
+const PREVIEW_PAGE_GAP = 18;
+const SWITCH_NOTICE_PAGE_OFFSET = 24;
 const activePanel = reactive({
   basic: true,
   product: true,
@@ -174,6 +314,14 @@ const activePageIndex = computed(() => {
 });
 
 const previewPages = computed(() => appState.pages);
+
+const switchNoticeStyle = computed(() => {
+  const pageIndex = Math.max(activePageIndex.value, 0);
+
+  return {
+    top: `${pageIndex * (SHEET_PAGE_HEIGHT + PREVIEW_PAGE_GAP) + SWITCH_NOTICE_PAGE_OFFSET}px`,
+  };
+});
 
 const editorTargets = {
   titleZh: { panel: "basic", label: "中文标题" },
@@ -245,6 +393,11 @@ function setTermCardRef(index) {
 
 function clearHighlights() {
   document.querySelectorAll(".is-targeted").forEach((item) => item.classList.remove("is-targeted"));
+}
+
+function resetAutoTranslationTracking() {
+  titleTranslationSource.value = "";
+  productNameTranslationSource.value = "";
 }
 
 function focusEditorTarget(target, message) {
@@ -371,6 +524,7 @@ function addPage() {
   const next = createDefaultPage();
   appState.pages.push(next);
   appState.activePageId = next.id;
+  resetAutoTranslationTracking();
   commit("已新增页面");
 }
 
@@ -379,11 +533,13 @@ function duplicatePage() {
   copy.productNameZh = `${copy.productNameZh} 副本`;
   appState.pages.splice(activePageIndex.value + 1, 0, copy);
   appState.activePageId = copy.id;
+  resetAutoTranslationTracking();
   commit("已复制当前页");
 }
 
 function selectPage(pageId) {
   appState.activePageId = pageId;
+  resetAutoTranslationTracking();
   const pageIndex = appState.pages.findIndex((page) => page.id === pageId);
   const pageNumber = pageIndex + 1;
   setStatus(`已切换到第 ${pageNumber} 页`);
@@ -417,6 +573,7 @@ function clearPage() {
   const next = createDefaultPage();
   appState.pages.splice(activePageIndex.value, 1, next);
   appState.activePageId = next.id;
+  resetAutoTranslationTracking();
   commit("当前页已恢复默认模板");
 }
 
@@ -426,6 +583,7 @@ async function resetDocument() {
   appState.version = next.version;
   appState.activePageId = next.activePageId;
   appState.pages.splice(0, appState.pages.length, ...next.pages);
+  resetAutoTranslationTracking();
   setStatus("已恢复默认模板");
   scheduleSave();
 }
@@ -944,12 +1102,12 @@ onBeforeUnmount(() => {
     </aside>
 
     <section class="preview-stage">
-      <transition name="notice-fade">
-        <div v-if="switchNotice" class="switch-notice" role="status">{{ switchNotice }}</div>
-      </transition>
-
       <div class="preview-viewport" ref="previewViewportRef">
         <div class="preview-page-stack">
+          <transition name="notice-fade">
+            <div v-if="switchNotice" class="switch-notice" :style="switchNoticeStyle" role="status">{{ switchNotice }}</div>
+          </transition>
+
           <SheetPreview
             v-for="(page, index) in previewPages"
             :key="page.id"

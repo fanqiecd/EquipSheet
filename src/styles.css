@@ -960,6 +960,7 @@ select:focus {
 }
 
 .preview-page-stack {
+  position: relative;
   display: grid;
   gap: 18px;
   justify-content: center;
@@ -969,7 +970,6 @@ select:focus {
 
 .switch-notice {
   position: absolute;
-  top: 108px;
   left: 50%;
   z-index: 20;
   transform: translateX(-50%);
