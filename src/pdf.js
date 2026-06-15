@@ -7,7 +7,13 @@ function updateProgress(onProgress, current, total, message) {
 }
 
 function collectDocumentStyles() {
+  const appOrigin = location.origin;
+
   return [...document.styleSheets]
+    .filter((sheet) => {
+      // Keep inline stylesheets (no href) and same-origin stylesheets
+      return !sheet.href || sheet.href.startsWith(appOrigin) || sheet.href.startsWith("/");
+    })
     .map((sheet) => {
       try {
         return [...sheet.cssRules].map((rule) => rule.cssText).join("\n");

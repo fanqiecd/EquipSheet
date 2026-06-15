@@ -14,6 +14,8 @@ function openDb() {
       }
     };
 
+    request.onblocked = () => reject(new Error("Database blocked by another connection"));
+
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });

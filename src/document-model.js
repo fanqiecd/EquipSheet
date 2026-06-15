@@ -24,8 +24,10 @@ export const layoutOptions = [
   { value: "hero", label: "主图+缩略图" },
 ];
 
+const hasCryptoUUID = typeof crypto?.randomUUID === "function";
+
 export function uid(prefix = "id") {
-  if (crypto.randomUUID) {
+  if (hasCryptoUUID) {
     return `${prefix}-${crypto.randomUUID()}`;
   }
 
@@ -134,7 +136,7 @@ function lerp(from, to, t) {
   return from + (to - from) * t;
 }
 
-export function getSideDensityMetrics(fields, terms) {
+export function getSideDensityMetrics() {
   // 返回固定值，确保字段高度统一
   return {
     detailGap: 10,

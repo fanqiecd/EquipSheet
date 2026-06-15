@@ -1432,31 +1432,17 @@ select:focus {
 
 .detail-item::before {
   content: "◆";
-  font-size: max(10px, calc(var(--detail-bullet-size, 12px) - (var(--side-tightness, 0) * 0.8px)));
-  line-height: 1.2;
+  font-size: max(12px, calc(var(--detail-bullet-size, 12px) * 0.85));
+  line-height: 1;
   color: var(--accent);
-  margin-top: 2px;
+  margin-left: 3px;
   align-self: center;
   transition: transform 0.24s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .detail-item:hover::before,
 .detail-item:focus-visible::before {
-  transform: scale(1.05) rotate(5deg);
-}
-
-.detail-item::before {
-  content: "";
-  width: max(5px, calc(var(--detail-bullet-size, 12px) * 0.42));
-  height: max(5px, calc(var(--detail-bullet-size, 12px) * 0.42));
-  margin-left: 3px;
-  background: var(--accent);
-  transform: rotate(45deg);
-}
-
-.detail-item:hover::before,
-.detail-item:focus-visible::before {
-  transform: scale(1.08) rotate(45deg);
+  transform: scale(1.08) rotate(5deg);
 }
 
 .detail-copy {

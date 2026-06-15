@@ -19,9 +19,10 @@ import {
 
 const showBackToTop = ref(false);
 const isTranslating = ref(false);
-const TRANSLATION_CONTACT_EMAIL = "485627835@qq.com";
 const TRANSLATION_DEBOUNCE_MS = 1000;
+const TRANSLATION_CACHE_MAX_SIZE = 500;
 const TRANSLATION_QUOTA_EXCEEDED_MESSAGE = "MyMemory 今日免费翻译额度已用尽，已暂停自动翻译请求";
+const TRANSLATION_ENDPOINT = "/api/translate";
 const translationCache = new Map();
 const translationPendingRequests = new Map();
 const fieldTranslationState = new WeakMap();
@@ -61,14 +62,13 @@ async function translateText(text, from = 'zh-CN', to = 'en-US') {
     return translationPendingRequests.get(cacheKey);
   }
 
-  const requestUrl = new URL("https://api.mymemory.translated.net/get");
-  requestUrl.searchParams.set("q", normalizedText);
-  requestUrl.searchParams.set("langpair", `${from}|${to}`);
-  requestUrl.searchParams.set("de", TRANSLATION_CONTACT_EMAIL);
-
   const requestPromise = (async () => {
   try {
-    const response = await fetch(requestUrl.toString());
+    const response = await fetch(TRANSLATION_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: normalizedText, from, to }),
+    });
     const data = await response.json();
 
     if (isQuotaExceededResponse(response, data)) {
@@ -85,6 +85,11 @@ async function translateText(text, from = 'zh-CN', to = 'en-US') {
 
       if (translatedText) {
         translationCache.set(cacheKey, translatedText);
+        // LRU eviction: remove oldest entry when over capacity
+        if (translationCache.size > TRANSLATION_CACHE_MAX_SIZE) {
+          const oldestKey = translationCache.keys().next().value;
+          translationCache.delete(oldestKey);
+        }
         return translatedText;
       }
     }
@@ -101,8 +106,6 @@ async function translateText(text, from = 'zh-CN', to = 'en-US') {
   translationPendingRequests.set(cacheKey, requestPromise);
   return requestPromise;
 }
-
-let translateDebounceTimer = null;
 
 async function handleFieldTranslate(field, type) {
   const sourceKey = type === "zhLabel" ? "zhLabel" : "zhValue";
@@ -138,11 +141,14 @@ async function handleFieldTranslate(field, type) {
 }
 
 function debounceTranslate(field, type) {
-  if (translateDebounceTimer) {
-    clearTimeout(translateDebounceTimer);
+  const trackedState = getFieldTranslationState(field);
+
+  if (trackedState.timer) {
+    clearTimeout(trackedState.timer);
   }
-  
-  translateDebounceTimer = setTimeout(() => {
+
+  trackedState.timer = setTimeout(() => {
+    trackedState.timer = null;
     handleFieldTranslate(field, type);
   }, TRANSLATION_DEBOUNCE_MS);
 }
@@ -239,6 +245,7 @@ function getFieldTranslationState(field) {
     fieldTranslationState.set(field, {
       zhLabel: "",
       zhValue: "",
+      timer: null,
     });
   }
 
@@ -647,6 +654,7 @@ function clearPage() {
 
 async function resetDocument() {
   await clearDocument();
+  translationCache.clear();
   const next = createDefaultState();
   replaceDocumentState(next);
   setStatus("已恢复默认模板");
@@ -689,6 +697,7 @@ async function importJson(event) {
     }
 
     const next = normalizeState(parsed);
+    translationCache.clear();
     replaceDocumentState(next);
     await saveDocument(cloneDocumentState(toRaw(appState)));
     setStatus(`已导入 JSON：${next.pages.length} 页`);
@@ -868,6 +877,7 @@ onMounted(async () => {
     console.warn("Could not load saved document, using defaults.", error);
   }
 
+  // #export-root lives in index.html outside Vue, so querySelector is the correct approach here.
   exportRootRef.value = document.querySelector("#export-root");
   window.addEventListener("beforeprint", preparePrintPages);
   afterPrintHandler = () => {

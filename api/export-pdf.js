@@ -1,6 +1,6 @@
 import chromium from "@sparticuz/chromium";
 import puppeteer from "puppeteer-core";
-import { injectPdfFonts } from "../server-pdf-fonts.js";
+import { renderPdf } from "../render-pdf.js";
 
 async function launchBrowser() {
   const executablePath = await chromium.executablePath();
@@ -13,36 +13,7 @@ async function launchBrowser() {
   });
 }
 
-async function renderPdf(html) {
-  const browser = await launchBrowser();
-
-  try {
-    const page = await browser.newPage();
-    const htmlWithFonts = await injectPdfFonts(html);
-
-    await page.setContent(htmlWithFonts, {
-      waitUntil: "load",
-    });
-    await page.evaluate(() => document.fonts?.ready);
-
-    await page.emulateMediaType("print");
-
-    return await page.pdf({
-      format: "A4",
-      landscape: true,
-      printBackground: true,
-      preferCSSPageSize: true,
-      margin: {
-        top: "0",
-        right: "0",
-        bottom: "0",
-        left: "0",
-      },
-    });
-  } finally {
-    await browser.close();
-  }
-}
+const MAX_PAYLOAD_HTML_BYTES = 5_000_000; // 5 MB
 
 export default async function handler(request, response) {
   if (request.method !== "POST") {
@@ -52,6 +23,13 @@ export default async function handler(request, response) {
   }
 
   try {
+    const rawBody = typeof request.body === "string" ? request.body : JSON.stringify(request.body);
+
+    if (Buffer.byteLength(rawBody) > MAX_PAYLOAD_HTML_BYTES) {
+      response.status(413).send("Payload too large");
+      return;
+    }
+
     const payload = typeof request.body === "string" ? JSON.parse(request.body) : request.body;
 
     if (!payload?.html) {
@@ -59,7 +37,7 @@ export default async function handler(request, response) {
       return;
     }
 
-    const pdf = await renderPdf(payload.html);
+    const pdf = await renderPdf(payload.html, launchBrowser);
 
     response.setHeader("Content-Type", "application/pdf");
     response.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(payload.fileName || "equipment-sheet.pdf")}"`);

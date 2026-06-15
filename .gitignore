@@ -4,4 +4,17 @@ dist/
 .DS_Store
 memory/
 
+# deployment
 .vercel
+
+# code intelligence
+.codegraph/
+
+# ai workspace
+.reasonix/
+
+# environment
+.env
+.env.*
+!.env.example
+*.local
