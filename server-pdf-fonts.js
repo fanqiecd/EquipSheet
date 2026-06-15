@@ -41,10 +41,16 @@ export async function getPdfFontCss() {
 
 export async function injectPdfFonts(html) {
   const fontCss = await getPdfFontCss();
+  const pdfFontOverride = `
+        #export-root,
+        #export-root * {
+          font-family: "Noto Sans SC", Arial, sans-serif !important;
+        }
+      `;
 
   if (html.includes("</style>")) {
-    return html.replace("</style>", `${fontCss}\n</style>`);
+    return html.replace("</style>", `${fontCss}\n${pdfFontOverride}\n</style>`);
   }
 
-  return html.replace("</head>", `<style>${fontCss}</style></head>`);
+  return html.replace("</head>", `<style>${fontCss}\n${pdfFontOverride}</style></head>`);
 }
