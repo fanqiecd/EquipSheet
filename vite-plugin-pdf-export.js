@@ -23,6 +23,7 @@ async function renderPdf(html) {
     await page.setContent(html, {
       waitUntil: "networkidle0",
     });
+    await page.evaluate(() => document.fonts?.ready);
 
     await page.emulateMediaType("print");
 

@@ -22,11 +22,13 @@ function collectDocumentStyles() {
 function buildPdfHtml(pageNodes) {
   const pagesMarkup = pageNodes.map((page) => page.outerHTML).join("");
   const styles = collectDocumentStyles();
+  const baseHref = document.baseURI;
 
   return `<!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
+    <base href="${baseHref}" />
     <style>
       ${styles}
       * {
