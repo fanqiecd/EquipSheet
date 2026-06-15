@@ -1,5 +1,6 @@
 import chromium from "@sparticuz/chromium";
 import puppeteer from "puppeteer-core";
+import { injectPdfFonts } from "../server-pdf-fonts.js";
 
 async function launchBrowser() {
   const executablePath = await chromium.executablePath();
@@ -17,8 +18,9 @@ async function renderPdf(html) {
 
   try {
     const page = await browser.newPage();
+    const htmlWithFonts = await injectPdfFonts(html);
 
-    await page.setContent(html, {
+    await page.setContent(htmlWithFonts, {
       waitUntil: "networkidle0",
     });
     await page.evaluate(() => document.fonts?.ready);

@@ -1,4 +1,5 @@
 import puppeteer from "puppeteer";
+import { injectPdfFonts } from "./server-pdf-fonts.js";
 
 const EXPORT_ROUTE = "/api/export-pdf";
 
@@ -19,8 +20,9 @@ async function renderPdf(html) {
 
   try {
     const page = await browser.newPage();
+    const htmlWithFonts = await injectPdfFonts(html);
 
-    await page.setContent(html, {
+    await page.setContent(htmlWithFonts, {
       waitUntil: "networkidle0",
     });
     await page.evaluate(() => document.fonts?.ready);

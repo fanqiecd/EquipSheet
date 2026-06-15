@@ -307,7 +307,9 @@ let noticeTimer = 0;
 let focusTimer = 0;
 let unhighlightTimer = 0;
 let afterPrintHandler = null;
-let exportProgressTimer = 0;
+let exportProgressFrame = 0;
+let exportProgressTarget = 0;
+let exportProgressCompleteTimer = 0;
 
 const activePage = computed(() => {
   return appState.pages.find((page) => page.id === appState.activePageId) ?? appState.pages[0];
@@ -346,47 +348,57 @@ function setStatus(message) {
 }
 
 function stopExportProgressMotion() {
-  window.clearInterval(exportProgressTimer);
-  exportProgressTimer = 0;
+  if (exportProgressFrame) {
+    window.cancelAnimationFrame(exportProgressFrame);
+    exportProgressFrame = 0;
+  }
+  exportProgressTarget = exportProgress.value;
 }
 
 function startExportProgressMotion(target = 92) {
-  stopExportProgressMotion();
+  exportProgressTarget = Math.max(exportProgressTarget, target);
+  if (exportProgressFrame) {
+    return;
+  }
 
-  exportProgressTimer = window.setInterval(() => {
-    if (exportProgress.value >= target) {
-      stopExportProgressMotion();
+  const tick = () => {
+    const distance = exportProgressTarget - exportProgress.value;
+
+    if (Math.abs(distance) < 0.08) {
+      exportProgress.value = exportProgressTarget;
+      exportProgressFrame = 0;
       return;
     }
 
-    const distance = target - exportProgress.value;
-    exportProgress.value = Math.min(target, exportProgress.value + Math.max(1, Math.round(distance * 0.12)));
-  }, 360);
+    exportProgress.value = Math.min(100, exportProgress.value + distance * 0.16);
+    exportProgressFrame = window.requestAnimationFrame(tick);
+  };
+
+  exportProgressFrame = window.requestAnimationFrame(tick);
 }
 
 function updateExportProgress(current, total, message) {
   exportStage.value = message;
 
   if (message.includes("加载字体")) {
-    exportProgress.value = Math.max(exportProgress.value, 8);
+    exportProgress.value = Math.max(exportProgress.value, 4);
+    startExportProgressMotion(12);
     return;
   }
 
   if (message.includes("提交")) {
-    exportProgress.value = Math.max(exportProgress.value, 18);
-    startExportProgressMotion();
+    exportProgress.value = Math.max(exportProgress.value, 14);
+    startExportProgressMotion(92);
     return;
   }
 
   if (message.includes("保存")) {
-    stopExportProgressMotion();
-    exportProgress.value = Math.max(exportProgress.value, 96);
+    startExportProgressMotion(96);
     return;
   }
 
   if (current >= total && total > 0) {
-    stopExportProgressMotion();
-    exportProgress.value = 100;
+    startExportProgressMotion(100);
   }
 }
 
@@ -783,8 +795,15 @@ async function exportPdf() {
   }
 
   isExporting.value = true;
+  if (exportProgressCompleteTimer) {
+    window.clearTimeout(exportProgressCompleteTimer);
+    exportProgressCompleteTimer = 0;
+  }
+  stopExportProgressMotion();
   exportProgress.value = 0;
+  exportProgressTarget = 0;
   exportStage.value = "正在准备页面...";
+  let exportSucceeded = false;
 
   try {
     await nextTick();
@@ -808,8 +827,14 @@ async function exportPdf() {
         setStatus(message);
       }
     );
-    stopExportProgressMotion();
-    exportProgress.value = 100;
+    exportProgressTarget = 100;
+    startExportProgressMotion(100);
+    exportProgressCompleteTimer = window.setTimeout(() => {
+      exportProgress.value = 100;
+      stopExportProgressMotion();
+      exportProgressCompleteTimer = 0;
+    }, 140);
+    exportSucceeded = true;
     exportStage.value = "PDF 导出完成";
     setStatus("PDF 已生成");
   } catch (error) {
@@ -823,8 +848,13 @@ async function exportPdf() {
       exportRootRef.value.innerHTML = "";
       exportRootRef.value.setAttribute("aria-hidden", "true");
     }
-    isExporting.value = false;
-    stopExportProgressMotion();
+    if (exportSucceeded) {
+      window.setTimeout(() => {
+        isExporting.value = false;
+      }, 450);
+    } else {
+      isExporting.value = false;
+    }
   }
 }
 
@@ -860,6 +890,9 @@ onBeforeUnmount(() => {
   window.clearTimeout(noticeTimer);
   window.clearTimeout(focusTimer);
   window.clearTimeout(unhighlightTimer);
+  if (exportProgressCompleteTimer) {
+    window.clearTimeout(exportProgressCompleteTimer);
+  }
   stopExportProgressMotion();
 });
 </script>
@@ -905,12 +938,12 @@ onBeforeUnmount(() => {
           type="line"
           :percentage="exportProgress"
           :processing="true"
-          :show-indicator="true"
-          indicator-placement="inside"
+          :show-indicator="false"
           color="#14532d"
           rail-color="rgba(20, 83, 45, 0.14)"
           :height="14"
         />
+        <p v-if="isExporting" class="status-export__percent">{{ Math.round(exportProgress) }}%</p>
       </div>
 
       <section class="editor-card">

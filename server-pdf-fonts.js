@@ -1,0 +1,53 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+const FONT_WEIGHTS = [400, 500, 600, 700, 800, 900];
+
+let pdfFontCssPromise = null;
+
+async function readFontAsDataUrl(weight) {
+  const fontPath = path.resolve(
+    __dirname,
+    "node_modules",
+    "@fontsource",
+    "noto-sans-sc",
+    "files",
+    `noto-sans-sc-chinese-simplified-${weight}-normal.woff2`
+  );
+  const font = await readFile(fontPath);
+
+  return `data:font/woff2;base64,${font.toString("base64")}`;
+}
+
+export async function getPdfFontCss() {
+  if (!pdfFontCssPromise) {
+    pdfFontCssPromise = Promise.all(
+      FONT_WEIGHTS.map(async (weight) => {
+        const dataUrl = await readFontAsDataUrl(weight);
+
+        return `@font-face {
+          font-family: "Noto Sans SC";
+          font-style: normal;
+          font-display: swap;
+          font-weight: ${weight};
+          src: url("${dataUrl}") format("woff2");
+        }`;
+      })
+    ).then((rules) => rules.join("\n"));
+  }
+
+  return pdfFontCssPromise;
+}
+
+export async function injectPdfFonts(html) {
+  const fontCss = await getPdfFontCss();
+
+  if (html.includes("</style>")) {
+    return html.replace("</style>", `${fontCss}\n</style>`);
+  }
+
+  return html.replace("</head>", `<style>${fontCss}</style></head>`);
+}

@@ -19,8 +19,28 @@ function collectDocumentStyles() {
     .join("\n");
 }
 
-function buildPdfHtml(pageNodes) {
-  const pagesMarkup = pageNodes.map((page) => page.outerHTML).join("");
+function flattenEllipsisNodes(root) {
+  root.querySelectorAll(".n-ellipsis").forEach((node) => {
+    const text = (node.textContent || "").trim();
+    const span = document.createElement("span");
+    const classNames = [...node.classList].filter((className) => !className.startsWith("n-ellipsis"));
+
+    span.textContent = text;
+    if (classNames.length) {
+      span.className = classNames.join(" ");
+    }
+    node.replaceWith(span);
+  });
+}
+
+async function buildPdfHtml(pageNodes) {
+  const pagesMarkup = pageNodes
+    .map((page) => {
+      const cloned = page.cloneNode(true);
+      flattenEllipsisNodes(cloned);
+      return cloned.outerHTML;
+    })
+    .join("");
   const styles = collectDocumentStyles();
   const baseHref = document.baseURI;
 
@@ -76,7 +96,7 @@ export async function exportPagesToPdf(pageNodes, fileName = "equipment-sheet.pd
     },
     body: JSON.stringify({
       fileName,
-      html: buildPdfHtml(pageNodes),
+      html: await buildPdfHtml(pageNodes),
     }),
   });
 
