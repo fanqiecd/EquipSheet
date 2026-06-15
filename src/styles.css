@@ -1431,12 +1431,13 @@ select:focus {
 }
 
 .detail-item::before {
-  content: "◆";
-  font-size: max(12px, calc(var(--detail-bullet-size, 12px) * 0.85));
-  line-height: 1;
-  color: var(--accent);
+  content: "";
+  width: 0;
+  height: 0;
+  border: max(3.5px, calc(var(--detail-bullet-size, 12px) * 0.3)) solid var(--accent);
   margin-left: 3px;
   align-self: center;
+  transform: rotate(45deg);
   transition: transform 0.24s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
