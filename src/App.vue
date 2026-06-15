@@ -1273,7 +1273,6 @@ onBeforeUnmount(() => {
             </n-config-provider>
           </label>
         </div>
-        <button class="section-button" type="button" @click="addTerm">新增条款</button>
       </details>
     </aside>
 
