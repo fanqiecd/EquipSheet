@@ -1,16 +1,13 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-const FONT_WEIGHTS = [400, 500, 600, 700, 800, 900];
+const FONT_WEIGHTS = [400, 700];
 
 let pdfFontCssPromise = null;
 
 async function readFontAsDataUrl(weight) {
   const fontPath = path.resolve(
-    __dirname,
+    process.cwd(),
     "node_modules",
     "@fontsource",
     "noto-sans-sc",

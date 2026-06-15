@@ -21,7 +21,7 @@ async function renderPdf(html) {
     const htmlWithFonts = await injectPdfFonts(html);
 
     await page.setContent(htmlWithFonts, {
-      waitUntil: "networkidle0",
+      waitUntil: "load",
     });
     await page.evaluate(() => document.fonts?.ready);
 

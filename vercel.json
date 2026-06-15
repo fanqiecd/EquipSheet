@@ -4,6 +4,7 @@
   "outputDirectory": "dist",
   "functions": {
     "api/export-pdf.js": {
+      "includeFiles": "node_modules/@fontsource/noto-sans-sc/files/noto-sans-sc-chinese-simplified-{400,700}-normal.woff2",
       "maxDuration": 60
     }
   },
