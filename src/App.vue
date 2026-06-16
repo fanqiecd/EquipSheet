@@ -1,10 +1,9 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, toRaw, h } from "vue";
-import { NSelect, NConfigProvider, NIcon, NInput, NEllipsis, NProgress } from "naive-ui";
+import { NSelect, NConfigProvider, NIcon, NInput, NEllipsis, NDialogProvider, useDialog } from "naive-ui";
 import { ChevronDownOutline, ArrowUpOutline } from "@vicons/ionicons5";
 import { equipSheetThemeOverrides } from "./naive-theme.js";
 import SheetPreview from "./components/SheetPreview.vue";
-import { exportPagesToPdf } from "./pdf.js";
 import { clearDocument, loadDocument, saveDocument } from "./storage.js";
 import {
   MAX_FIELDS_PER_PAGE,
@@ -18,6 +17,7 @@ import {
 } from "./document-model.js";
 
 const showBackToTop = ref(false);
+const dialog = useDialog();
 const isTranslating = ref(false);
 const TRANSLATION_DEBOUNCE_MS = 1000;
 const TRANSLATION_CACHE_MAX_SIZE = 500;
@@ -285,9 +285,6 @@ const toneOptions = [
   { label: '红色', value: 'danger' }
 ]
 
-const isExporting = ref(false);
-const exportProgress = ref(0);
-const exportStage = ref("");
 const statusMessage = ref("已准备好");
 const switchNotice = ref("");
 const SHEET_PAGE_HEIGHT = 794;
@@ -314,9 +311,6 @@ let noticeTimer = 0;
 let focusTimer = 0;
 let unhighlightTimer = 0;
 let afterPrintHandler = null;
-let exportProgressFrame = 0;
-let exportProgressTarget = 0;
-let exportProgressCompleteTimer = 0;
 
 const activePage = computed(() => {
   return appState.pages.find((page) => page.id === appState.activePageId) ?? appState.pages[0];
@@ -354,61 +348,6 @@ function setStatus(message) {
   statusMessage.value = message;
 }
 
-function stopExportProgressMotion() {
-  if (exportProgressFrame) {
-    window.cancelAnimationFrame(exportProgressFrame);
-    exportProgressFrame = 0;
-  }
-  exportProgressTarget = exportProgress.value;
-}
-
-function startExportProgressMotion(target = 92) {
-  exportProgressTarget = Math.max(exportProgressTarget, target);
-  if (exportProgressFrame) {
-    return;
-  }
-
-  const tick = () => {
-    const distance = exportProgressTarget - exportProgress.value;
-
-    if (Math.abs(distance) < 0.08) {
-      exportProgress.value = exportProgressTarget;
-      exportProgressFrame = 0;
-      return;
-    }
-
-    exportProgress.value = Math.min(100, exportProgress.value + distance * 0.16);
-    exportProgressFrame = window.requestAnimationFrame(tick);
-  };
-
-  exportProgressFrame = window.requestAnimationFrame(tick);
-}
-
-function updateExportProgress(current, total, message) {
-  exportStage.value = message;
-
-  if (message.includes("加载字体")) {
-    exportProgress.value = Math.max(exportProgress.value, 4);
-    startExportProgressMotion(12);
-    return;
-  }
-
-  if (message.includes("提交")) {
-    exportProgress.value = Math.max(exportProgress.value, 14);
-    startExportProgressMotion(92);
-    return;
-  }
-
-  if (message.includes("保存")) {
-    startExportProgressMotion(96);
-    return;
-  }
-
-  if (current >= total && total > 0) {
-    startExportProgressMotion(100);
-  }
-}
-
 function scheduleSave() {
   window.clearTimeout(saveTimer);
   setStatus("正在自动保存...");
@@ -419,7 +358,7 @@ function scheduleSave() {
       setStatus("已自动保存到本地浏览器");
     } catch (error) {
       console.error(error);
-      setStatus("自动保存失败，请尝试导出 PDF 或刷新重试");
+      setStatus("自动保存失败，请刷新重试");
     }
   }, 380);
 }
@@ -652,6 +591,18 @@ function clearPage() {
   commit("当前页已恢复默认模板");
 }
 
+function confirmResetDocument() {
+  dialog.warning({
+    title: "恢复默认模板",
+    content: "此操作将清空当前所有内容并恢复为默认模板，且无法撤销。确定继续吗？",
+    positiveText: "恢复",
+    negativeText: "取消",
+    onPositiveClick: () => {
+      resetDocument();
+    },
+  });
+}
+
 async function resetDocument() {
   await clearDocument();
   translationCache.clear();
@@ -798,75 +749,6 @@ async function printDocument() {
   window.print();
 }
 
-async function exportPdf() {
-  if (isExporting.value) {
-    return;
-  }
-
-  isExporting.value = true;
-  if (exportProgressCompleteTimer) {
-    window.clearTimeout(exportProgressCompleteTimer);
-    exportProgressCompleteTimer = 0;
-  }
-  stopExportProgressMotion();
-  exportProgress.value = 0;
-  exportProgressTarget = 0;
-  exportStage.value = "正在准备页面...";
-  let exportSucceeded = false;
-
-  try {
-    await nextTick();
-    const pageNodes = pageListRef.value.filter(Boolean).map((page) => {
-      const cloned = page.cloneNode(true);
-      // 移除 active 状态类，避免绿色框被导出
-      cloned.classList.remove("sheet-page--active");
-      return cloned;
-    });
-    const stagingRoot = exportRootRef.value;
-
-    stagingRoot.innerHTML = "";
-    pageNodes.forEach((page) => stagingRoot.append(page));
-    
-    // 使用带进度提示的导出函数
-    await exportPagesToPdf(
-      [...stagingRoot.querySelectorAll(".sheet-page")], 
-      "设备资料单.pdf",
-      (current, total, message) => {
-        updateExportProgress(current, total, message);
-        setStatus(message);
-      }
-    );
-    exportProgressTarget = 100;
-    startExportProgressMotion(100);
-    exportProgressCompleteTimer = window.setTimeout(() => {
-      exportProgress.value = 100;
-      stopExportProgressMotion();
-      exportProgressCompleteTimer = 0;
-    }, 140);
-    exportSucceeded = true;
-    exportStage.value = "PDF 导出完成";
-    setStatus("PDF 已生成");
-  } catch (error) {
-    console.error(error);
-    stopExportProgressMotion();
-    exportProgress.value = 0;
-    exportStage.value = "";
-    setStatus("PDF 导出失败，可先使用打印另存 PDF 备用");
-  } finally {
-    if (exportRootRef.value) {
-      exportRootRef.value.innerHTML = "";
-      exportRootRef.value.setAttribute("aria-hidden", "true");
-    }
-    if (exportSucceeded) {
-      window.setTimeout(() => {
-        isExporting.value = false;
-      }, 450);
-    } else {
-      isExporting.value = false;
-    }
-  }
-}
-
 onMounted(async () => {
   try {
     const saved = normalizeState(await loadDocument());
@@ -900,10 +782,6 @@ onBeforeUnmount(() => {
   window.clearTimeout(noticeTimer);
   window.clearTimeout(focusTimer);
   window.clearTimeout(unhighlightTimer);
-  if (exportProgressCompleteTimer) {
-    window.clearTimeout(exportProgressCompleteTimer);
-  }
-  stopExportProgressMotion();
 });
 </script>
 
@@ -930,31 +808,13 @@ onBeforeUnmount(() => {
         <button class="action-button action-button--primary" type="button" @click="addPage">新增页面</button>
         <button class="action-button" type="button" @click="duplicatePage">复制当前页</button>
         <button class="action-button" type="button" @click="printDocument">打印 / 另存 PDF</button>
-        <button class="action-button action-button--danger" type="button" @click="resetDocument">恢复默认模板</button>
+        <button class="action-button action-button--danger" type="button" @click="confirmResetDocument">恢复默认模板</button>
         <button class="action-button" type="button" @click="exportJson">导出 JSON</button>
         <button class="action-button" type="button" @click="openJsonImport">导入 JSON</button>
         <input ref="importFileInputRef" class="visually-hidden-file" type="file" accept="application/json,.json" @change="importJson" />
       </section>
 
       <p class="status-line">{{ statusMessage }}</p>
-      <div class="status-export">
-        <button class="action-button action-button--primary status-export__button" type="button" @click="exportPdf">
-          {{ isExporting ? "正在导出..." : "导出 PDF" }}
-        </button>
-        <p v-if="isExporting" class="status-export__stage">{{ exportStage }}</p>
-        <n-progress
-          v-if="isExporting"
-          class="status-export__progress"
-          type="line"
-          :percentage="exportProgress"
-          :processing="true"
-          :show-indicator="false"
-          color="#14532d"
-          rail-color="rgba(20, 83, 45, 0.14)"
-          :height="14"
-        />
-        <p v-if="isExporting" class="status-export__percent">{{ Math.round(exportProgress) }}%</p>
-      </div>
 
       <section class="editor-card">
         <header class="editor-card__header">
@@ -1296,6 +1156,6 @@ onBeforeUnmount(() => {
           />
         </div>
       </div>
-    </section>
-  </main>
+      </section>
+    </main>
 </template>

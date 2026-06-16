@@ -3,6 +3,7 @@ dist/
 *.log
 .DS_Store
 memory/
+reasonix.toml
 
 # deployment
 .vercel

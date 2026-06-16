@@ -1,12 +1,12 @@
 const defaultFields = [
-  { zhLabel: "采购日期", zhValue: "2011-2017年", enLabel: "Purchase Date", enValue: "2011-2017" },
-  { zhLabel: "成色", zhValue: "8成新", enLabel: "Degree of newness", enValue: "80%" },
-  { zhLabel: "数量", zhValue: "1台", enLabel: "Quantity", enValue: "1" },
-  { zhLabel: "包装", zhValue: "单只航空箱", enLabel: "Packing", enValue: "Single aviation box" },
+  { zhLabel: "采购日期", zhValue: "", enLabel: "Purchase Date", enValue: "" },
+  { zhLabel: "成色", zhValue: "", enLabel: "Degree of newness", enValue: "" },
+  { zhLabel: "数量", zhValue: "", enLabel: "Quantity", enValue: "" },
+  { zhLabel: "包装", zhValue: "", enLabel: "Packing", enValue: "" },
   { zhLabel: "附件", zhValue: "", enLabel: "Attachment", enValue: "" },
-  { zhLabel: "功能", zhValue: "完好", enLabel: "Function", enValue: "intact" },
+  { zhLabel: "功能", zhValue: "", enLabel: "Function", enValue: "" },
   { zhLabel: "通电检测时间", zhValue: "", enLabel: "Power on detection time", enValue: "" },
-  { zhLabel: "生产商参数查询", zhValue: "", enLabel: "", enValue: "" },
+  { zhLabel: "生产商参数查询", zhValue: "", enLabel: "Manufacturer Parameter Query", enValue: "" },
 ];
 
 const defaultTerms = [
@@ -39,17 +39,17 @@ export function createDefaultPage() {
     id: uid("page"),
     titleZh: "二手器材 · 灯光",
     titleEn: "SECOND HAND EQUIPMENT · LIGHTING EQUIPMENT",
-    salesCode: "010",
-    productNameZh: "2010珍珠控台",
-    productNameEn: "2010 Pearl Lighting Console",
-    contactName: "杨女士",
-    contactPhone: "19520491087",
+    salesCode: "001",
+    productNameZh: "产品名称",
+    productNameEn: "Product Name",
+    contactName: "",
+    contactPhone: "",
     qrImage: "",
     imageLayout: "hero",
     fields: defaultFields.map((field) => ({ ...field })),
     images: [],
     terms: defaultTerms.map((term) => ({ ...term })),
-    warehouseAddress: "库房地址：北京市北京市通州区 发区广源街吉林森工北京分公司13号库房",
+    warehouseAddress: "库房地址：",
   };
 }
 
