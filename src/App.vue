@@ -346,6 +346,34 @@ const editorTargets = {
   warehouseAddress: { panel: "terms", label: "仓库地址" },
 };
 
+const CONTROL_ID_PREFIX = "equip-sheet-editor";
+
+function getControlId(key) {
+  return `${CONTROL_ID_PREFIX}-${key}`;
+}
+
+function getIndexedControlId(scope, index, key) {
+  return `${CONTROL_ID_PREFIX}-${scope}-${index}-${key}`;
+}
+
+function getInputProps(key) {
+  const id = getControlId(key);
+
+  return {
+    id,
+    name: id,
+  };
+}
+
+function getIndexedInputProps(scope, index, key) {
+  const id = getIndexedControlId(scope, index, key);
+
+  return {
+    id,
+    name: id,
+  };
+}
+
 function setStatus(message) {
   statusMessage.value = message;
 }
@@ -852,7 +880,16 @@ onBeforeUnmount(() => {
         <button class="action-button action-button--danger" type="button" @click="confirmResetDocument">恢复默认模板</button>
         <button class="action-button" type="button" @click="exportJson">导出 JSON</button>
         <button class="action-button" type="button" @click="openJsonImport">导入 JSON</button>
-        <input ref="importFileInputRef" class="visually-hidden-file" type="file" accept="application/json,.json" @change="importJson" />
+        <input
+          id="equip-sheet-editor-import-json"
+          ref="importFileInputRef"
+          class="visually-hidden-file"
+          name="equip-sheet-editor-import-json"
+          type="file"
+          accept="application/json,.json"
+          aria-label="导入 JSON"
+          @change="importJson"
+        />
       </section>
 
       <p class="status-line">{{ statusMessage }}</p>
@@ -901,45 +938,53 @@ onBeforeUnmount(() => {
           <div class="panel-toggle-btn"></div>
         </summary>
         <div class="panel-grid">
-          <label class="control" data-editor-key="titleZh">
-            <span>中文标题</span>
+          <div class="control" data-editor-key="titleZh">
+            <label :for="getControlId('titleZh')">中文标题</label>
             <n-config-provider :theme-overrides="equipSheetThemeOverrides">
               <n-input 
                 v-model:value="activePage.titleZh" 
                 size="medium" 
+                :input-props="getInputProps('titleZh')"
                 @input="commit(); debounceTranslateTitle()" 
                 placeholder="可自动翻译"
               />
             </n-config-provider>
-          </label>
-          <label class="control" data-editor-key="titleEn">
-            <span>英文标题</span>
+          </div>
+          <div class="control" data-editor-key="titleEn">
+            <label :for="getControlId('titleEn')">英文标题</label>
             <n-config-provider :theme-overrides="equipSheetThemeOverrides">
-              <n-input v-model:value="activePage.titleEn" size="medium" @input="commit()" />
+              <n-input v-model:value="activePage.titleEn" size="medium" :input-props="getInputProps('titleEn')" @input="commit()" />
             </n-config-provider>
-          </label>
-          <label class="control" data-editor-key="salesCode">
-            <span>销售编号</span>
+          </div>
+          <div class="control" data-editor-key="salesCode">
+            <label :for="getControlId('salesCode')">销售编号</label>
             <n-config-provider :theme-overrides="equipSheetThemeOverrides">
-              <n-input v-model:value="activePage.salesCode" size="medium" @input="commit()" />
+              <n-input v-model:value="activePage.salesCode" size="medium" :input-props="getInputProps('salesCode')" @input="commit()" />
             </n-config-provider>
-          </label>
-          <label class="control" data-editor-key="contactName">
-            <span>联系人</span>
+          </div>
+          <div class="control" data-editor-key="contactName">
+            <label :for="getControlId('contactName')">联系人</label>
             <n-config-provider :theme-overrides="equipSheetThemeOverrides">
-              <n-input v-model:value="activePage.contactName" size="medium" @input="commit()" />
+              <n-input v-model:value="activePage.contactName" size="medium" :input-props="getInputProps('contactName')" @input="commit()" />
             </n-config-provider>
-          </label>
-          <label class="control" data-editor-key="contactPhone">
-            <span>联系方式</span>
+          </div>
+          <div class="control" data-editor-key="contactPhone">
+            <label :for="getControlId('contactPhone')">联系方式</label>
             <n-config-provider :theme-overrides="equipSheetThemeOverrides">
-              <n-input v-model:value="activePage.contactPhone" size="medium" @input="commit()" />
+              <n-input v-model:value="activePage.contactPhone" size="medium" :input-props="getInputProps('contactPhone')" @input="commit()" />
             </n-config-provider>
-          </label>
-          <label class="control" data-editor-key="qrImage">
-            <span>上传二维码</span>
-            <input class="input input--file" type="file" accept="image/*" @change="handleQrUpload" />
-          </label>
+          </div>
+          <div class="control" data-editor-key="qrImage">
+            <label :for="getControlId('qrImage')">上传二维码</label>
+            <input
+              :id="getControlId('qrImage')"
+              class="input input--file"
+              :name="getControlId('qrImage')"
+              type="file"
+              accept="image/*"
+              @change="handleQrUpload"
+            />
+          </div>
           <div class="qr-delete-row">
             <button class="ghost-button ghost-button--danger" type="button" :disabled="!activePage.qrImage" @click="removeQr">
               删除二维码
@@ -957,23 +1002,24 @@ onBeforeUnmount(() => {
           <div class="panel-toggle-btn"></div>
         </summary>
         <div class="panel-grid">
-          <label class="control" data-editor-key="productNameZh">
-            <span>产品中文名</span>
+          <div class="control" data-editor-key="productNameZh">
+            <label :for="getControlId('productNameZh')">产品中文名</label>
             <n-config-provider :theme-overrides="equipSheetThemeOverrides">
               <n-input 
                 v-model:value="activePage.productNameZh" 
                 size="medium" 
+                :input-props="getInputProps('productNameZh')"
                 @input="commit(); debounceTranslateProductName()" 
                 placeholder="可自动翻译"
               />
             </n-config-provider>
-          </label>
-          <label class="control" data-editor-key="productNameEn">
-            <span>产品英文名</span>
+          </div>
+          <div class="control" data-editor-key="productNameEn">
+            <label :for="getControlId('productNameEn')">产品英文名</label>
             <n-config-provider :theme-overrides="equipSheetThemeOverrides">
-              <n-input v-model:value="activePage.productNameEn" size="medium" @input="commit()" />
+              <n-input v-model:value="activePage.productNameEn" size="medium" :input-props="getInputProps('productNameEn')" @input="commit()" />
             </n-config-provider>
-          </label>
+          </div>
         </div>
       </details>
 
@@ -994,40 +1040,42 @@ onBeforeUnmount(() => {
             :data-field-editor-index="index"
           >
             <div class="panel-grid">
-              <label class="control">
-                <span>中文标签</span>
+              <div class="control">
+                <label :for="getIndexedControlId('field', index, 'zh-label')">中文标签</label>
                 <n-config-provider :theme-overrides="equipSheetThemeOverrides">
                   <n-input 
                     v-model:value="field.zhLabel" 
                     size="medium" 
+                    :input-props="getIndexedInputProps('field', index, 'zh-label')"
                     @input="commit(); debounceTranslate(field, 'zhLabel')" 
                     placeholder="可自动翻译"
                   />
                 </n-config-provider>
-              </label>
-              <label class="control">
-                <span>中文内容</span>
+              </div>
+              <div class="control">
+                <label :for="getIndexedControlId('field', index, 'zh-value')">中文内容</label>
                 <n-config-provider :theme-overrides="equipSheetThemeOverrides">
                   <n-input 
                     v-model:value="field.zhValue" 
                     size="medium" 
+                    :input-props="getIndexedInputProps('field', index, 'zh-value')"
                     @input="commit(); debounceTranslate(field, 'zhValue')" 
                     placeholder="可自动翻译"
                   />
                 </n-config-provider>
-              </label>
-              <label class="control">
-                <span>英文标签</span>
+              </div>
+              <div class="control">
+                <label :for="getIndexedControlId('field', index, 'en-label')">英文标签</label>
                 <n-config-provider :theme-overrides="equipSheetThemeOverrides">
-                  <n-input v-model:value="field.enLabel" size="medium" @input="commit()" />
+                  <n-input v-model:value="field.enLabel" size="medium" :input-props="getIndexedInputProps('field', index, 'en-label')" @input="commit()" />
                 </n-config-provider>
-              </label>
-              <label class="control">
-                <span>英文内容</span>
+              </div>
+              <div class="control">
+                <label :for="getIndexedControlId('field', index, 'en-value')">英文内容</label>
                 <n-config-provider :theme-overrides="equipSheetThemeOverrides">
-                  <n-input v-model:value="field.enValue" size="medium" @input="commit()" />
+                  <n-input v-model:value="field.enValue" size="medium" :input-props="getIndexedInputProps('field', index, 'en-value')" @input="commit()" />
                 </n-config-provider>
-              </label>
+              </div>
             </div>
             <div class="inline-actions">
               <button class="ghost-button" type="button" @click="moveField(index, -1)">上移</button>
@@ -1047,23 +1095,32 @@ onBeforeUnmount(() => {
           <div class="panel-toggle-btn"></div>
         </summary>
         <div class="stack-list">
-          <label class="control control--full" data-editor-key="imageLayout">
-            <span>图片布局</span>
+          <div class="control control--full" data-editor-key="imageLayout">
+            <span class="control__label">图片布局</span>
             <n-config-provider :theme-overrides="equipSheetThemeOverrides">
               <n-select
                 v-model:value="activePage.imageLayout"
                 :options="formattedLayoutOptions"
                 :render-arrow="renderArrow"
+                :input-props="getInputProps('imageLayout')"
                 size="medium"
                 @update:value="commit('图片布局已更新')"
               />
             </n-config-provider>
-          </label>
+          </div>
 
           <div class="upload-block" data-editor-key="productImages">
-            <p class="upload-block__label">上传产品图片（可多选）</p>
+            <label class="upload-block__label" :for="getControlId('productImages')">上传产品图片（可多选）</label>
             <label class="upload-block__field">
-              <input class="upload-block__input" type="file" accept="image/*" multiple @change="handleProductImages" />
+              <input
+                :id="getControlId('productImages')"
+                class="upload-block__input"
+                :name="getControlId('productImages')"
+                type="file"
+                accept="image/*"
+                multiple
+                @change="handleProductImages"
+              />
             </label>
           </div>
 
@@ -1086,22 +1143,30 @@ onBeforeUnmount(() => {
               </div>
             </div>
             <div class="media-card__controls">
-              <label class="control media-card__control">
-                <span>显示方式</span>
+              <div class="control media-card__control">
+                <span class="control__label">显示方式</span>
                 <n-config-provider :theme-overrides="equipSheetThemeOverrides">
                   <n-select
                     v-model:value="image.fit"
                     :options="fitOptions"
                     :render-arrow="renderArrow"
+                    :input-props="getIndexedInputProps('image', index, 'fit')"
                     size="medium"
                     @update:value="commit('图片显示方式已更新')"
                   />
                 </n-config-provider>
-              </label>
+              </div>
               <div class="media-card__replace">
-                <p class="media-card__inline-label">替换这张图片</p>
+                <label class="media-card__inline-label" :for="getIndexedControlId('image', index, 'replace')">替换这张图片</label>
                 <label class="upload-block__field upload-block__field--compact media-card__upload">
-                  <input class="upload-block__input" type="file" accept="image/*" @change="replaceProductImage(index, $event)" />
+                  <input
+                    :id="getIndexedControlId('image', index, 'replace')"
+                    class="upload-block__input"
+                    :name="getIndexedControlId('image', index, 'replace')"
+                    type="file"
+                    accept="image/*"
+                    @change="replaceProductImage(index, $event)"
+                  />
                 </label>
               </div>
               <div class="inline-actions media-card__actions">
@@ -1131,48 +1196,50 @@ onBeforeUnmount(() => {
             :data-term-editor-index="index"
           >
             <div class="panel-grid">
-              <label class="control">
-                <span>标签</span>
+              <div class="control">
+                <label :for="getIndexedControlId('term', index, 'label')">标签</label>
                 <n-config-provider :theme-overrides="equipSheetThemeOverrides">
-                  <n-input v-model:value="term.label" size="medium" @input="commit()" />
+                  <n-input v-model:value="term.label" size="medium" :input-props="getIndexedInputProps('term', index, 'label')" @input="commit()" />
                 </n-config-provider>
-              </label>
-              <label class="control">
-                <span>内容</span>
+              </div>
+              <div class="control">
+                <label :for="getIndexedControlId('term', index, 'text')">内容</label>
                 <n-config-provider :theme-overrides="equipSheetThemeOverrides">
-                  <n-input v-model:value="term.text" size="medium" @input="commit()" />
+                  <n-input v-model:value="term.text" size="medium" :input-props="getIndexedInputProps('term', index, 'text')" @input="commit()" />
                 </n-config-provider>
-              </label>
-              <label class="control">
-                <span>颜色</span>
+              </div>
+              <div class="control">
+                <span class="control__label">颜色</span>
                 <n-config-provider :theme-overrides="equipSheetThemeOverrides">
                   <n-select
                     v-model:value="term.tone"
                     :options="toneOptions"
                     :render-arrow="renderArrow"
+                    :input-props="getIndexedInputProps('term', index, 'tone')"
                     size="medium"
                     @update:value="commit('条款颜色已更新')"
                   />
                 </n-config-provider>
-              </label>
+              </div>
             </div>
             <div class="inline-actions">
               <button class="ghost-button ghost-button--danger" type="button" @click="deleteTerm(index)">删除</button>
             </div>
           </article>
 
-          <label class="control" data-editor-key="warehouseAddress">
-            <span>仓库 / 页脚地址</span>
+          <div class="control" data-editor-key="warehouseAddress">
+            <label :for="getControlId('warehouseAddress')">仓库 / 页脚地址</label>
             <n-config-provider :theme-overrides="equipSheetThemeOverrides">
               <n-input
                 v-model:value="activePage.warehouseAddress"
                 type="textarea"
                 size="medium"
+                :input-props="getInputProps('warehouseAddress')"
                 :autosize="{ minRows: 4, maxRows: 6 }"
                 @input="commit()"
               />
             </n-config-provider>
-          </label>
+          </div>
         </div>
       </details>
     </aside>
