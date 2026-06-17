@@ -7,6 +7,7 @@ import SheetPreview from "./components/SheetPreview.vue";
 import { clearDocument, loadDocument, saveDocument } from "./storage.js";
 import {
   MAX_FIELDS_PER_PAGE,
+  createCompactDocumentState,
   cloneDocumentState,
   clonePage,
   createDefaultPage,
@@ -29,6 +30,7 @@ const fieldTranslationState = new WeakMap();
 const titleTranslationSource = ref("");
 const productNameTranslationSource = ref("");
 const isTranslationQuotaExceeded = ref(false);
+let isPrintPreparationRunning = false;
 
 function handleScroll() {
   showBackToTop.value = window.scrollY > 300;
@@ -613,8 +615,8 @@ async function resetDocument() {
 }
 
 function exportJson() {
-  const snapshot = cloneDocumentState(toRaw(appState));
-  const blob = new Blob([JSON.stringify(snapshot, null, 2)], {
+  const snapshot = createCompactDocumentState(cloneDocumentState(toRaw(appState)));
+  const blob = new Blob([JSON.stringify(snapshot)], {
     type: "application/json;charset=utf-8",
   });
   const url = URL.createObjectURL(blob);
@@ -726,6 +728,10 @@ function preparePrintPages() {
     return;
   }
 
+  if (document.body.classList.contains("print-mode") && exportRootRef.value.childElementCount > 0) {
+    return;
+  }
+
   exportRootRef.value.innerHTML = buildPrintMarkup();
   exportRootRef.value.removeAttribute("aria-hidden");
   document.body.classList.add("print-mode");
@@ -741,12 +747,46 @@ function cleanupPrintPages() {
   exportRootRef.value.setAttribute("aria-hidden", "true");
 }
 
+async function waitForPrintAssets() {
+  await document.fonts?.ready;
+
+  const images = exportRootRef.value?.querySelectorAll("img") ?? [];
+  await Promise.all(
+    Array.from(images, async (img) => {
+      if (img.complete) {
+        return;
+      }
+
+      if (typeof img.decode === "function") {
+        try {
+          await img.decode();
+          return;
+        } catch (error) {
+          // 图片解码失败不阻断打印，浏览器仍可尝试继续渲染。
+        }
+      }
+
+      await new Promise((resolve) => {
+        img.addEventListener("load", resolve, { once: true });
+        img.addEventListener("error", resolve, { once: true });
+      });
+    }),
+  );
+}
+
 async function printDocument() {
+  if (isPrintPreparationRunning) {
+    return;
+  }
+
+  isPrintPreparationRunning = true;
   preparePrintPages();
   setStatus(`正在准备打印 ${appState.pages.length} 页...`);
   await nextTick();
+  await waitForPrintAssets();
   await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   window.print();
+  isPrintPreparationRunning = false;
 }
 
 onMounted(async () => {
@@ -764,6 +804,7 @@ onMounted(async () => {
   window.addEventListener("beforeprint", preparePrintPages);
   afterPrintHandler = () => {
     cleanupPrintPages();
+    isPrintPreparationRunning = false;
     setStatus("打印预览已关闭");
   };
   window.addEventListener("afterprint", afterPrintHandler);

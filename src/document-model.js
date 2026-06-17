@@ -67,13 +67,17 @@ export function normalizeState(candidate) {
     return createDefaultState();
   }
 
-  const pages = candidate.pages.map((page) => ({
-    ...createDefaultPage(),
-    ...page,
-    fields: Array.isArray(page.fields) ? page.fields.map((field) => ({ ...field })) : [],
-    images: Array.isArray(page.images) ? page.images.map((image) => ({ ...image })) : [],
-    terms: Array.isArray(page.terms) ? page.terms.map((term) => ({ ...term })) : [],
-  }));
+  const pages = candidate.pages.map((page) => {
+    const defaults = createDefaultPage();
+
+    return {
+      ...defaults,
+      ...page,
+      fields: Array.isArray(page.fields) ? page.fields.map((field) => ({ ...field })) : defaults.fields,
+      images: Array.isArray(page.images) ? page.images.map((image) => ({ ...image })) : defaults.images,
+      terms: Array.isArray(page.terms) ? page.terms.map((term) => ({ ...term })) : defaults.terms,
+    };
+  });
 
   return {
     version: 1,
@@ -126,6 +130,49 @@ export function cloneDocumentState(state) {
     activePageId: state.activePageId,
     pages: Array.isArray(state.pages) ? state.pages.map(clonePageData) : [],
   };
+}
+
+export function createCompactDocumentState(state) {
+  return {
+    version: state.version,
+    activePageId: state.activePageId,
+    pages: Array.isArray(state.pages) ? state.pages.map(compactPageData) : [],
+  };
+}
+
+function compactPageData(page) {
+  const defaults = createDefaultPage();
+  const compact = { id: page.id };
+
+  Object.entries(page).forEach(([key, value]) => {
+    if (key === "id") {
+      return;
+    }
+
+    if (isSameJsonValue(value, defaults[key])) {
+      return;
+    }
+
+    compact[key] = cloneJsonValue(value);
+  });
+
+  return compact;
+}
+
+function isSameJsonValue(left, right) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function cloneJsonValue(value) {
+  if (Array.isArray(value)) {
+    return value.map(cloneJsonValue);
+  }
+
+  if (value && typeof value === "object") {
+    return { ...value };
+  }
+
+  return value;
 }
 
 function clamp(value, min, max) {

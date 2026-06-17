@@ -1680,6 +1680,12 @@ select:focus {
     display: none !important;
   }
 
+  .back-to-top,
+  .sheet-page__click-overlay,
+  .sheet-page__grain {
+    display: none !important;
+  }
+
   .back-to-top {
     display: none !important;
   }
@@ -1709,6 +1715,14 @@ select:focus {
     border: 0 !important;
     box-shadow: none !important;
     transform: none !important;
+  }
+
+  .sheet-page,
+  .sheet-page *,
+  .sheet-page::before {
+    animation: none !important;
+    transition: none !important;
+    box-shadow: none !important;
   }
 
   .sheet-page:last-child {
