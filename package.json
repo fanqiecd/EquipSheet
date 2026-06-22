@@ -12,6 +12,7 @@
     "@fontsource/noto-sans-sc": "^5.2.9",
     "@vicons/ionicons5": "^0.13.0",
     "@vitejs/plugin-vue": "^6.0.7",
+    "jszip": "^3.10.1",
     "naive-ui": "^2.44.1",
     "vite": "^7.1.11",
     "vue": "^3.5.38"

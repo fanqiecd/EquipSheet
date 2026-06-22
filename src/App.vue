@@ -4,6 +4,7 @@ import { NSelect, NConfigProvider, NIcon, NInput, NEllipsis, NDialogProvider, us
 import { ChevronDownOutline, ArrowUpOutline } from "@vicons/ionicons5";
 import { equipSheetThemeOverrides } from "./naive-theme.js";
 import SheetPreview from "./components/SheetPreview.vue";
+import { exportBackupZip, importBackupZip } from "./backup-format.js";
 import { clearDocument, loadDocument, saveDocument } from "./storage.js";
 import {
   MAX_FIELDS_PER_PAGE,
@@ -289,6 +290,7 @@ const toneOptions = [
 
 const statusMessage = ref("已准备好");
 const switchNotice = ref("");
+const HISTORY_LIMIT = 80;
 const SHEET_PAGE_HEIGHT = 794;
 const PREVIEW_PAGE_GAP = 18;
 const SWITCH_NOTICE_PAGE_OFFSET = 24;
@@ -307,6 +309,9 @@ const pageListRef = ref([]);
 const previewViewportRef = ref(null);
 const fieldCardRefs = ref({});
 const termCardRefs = ref({});
+const undoHistory = ref([]);
+const redoHistory = ref([]);
+let historyLastSnapshotKey = "";
 
 let saveTimer = 0;
 let noticeTimer = 0;
@@ -378,10 +383,42 @@ function setStatus(message) {
   statusMessage.value = message;
 }
 
+function createDocumentSnapshot() {
+  return cloneDocumentState(toRaw(appState));
+}
+
+function snapshotKey(snapshot) {
+  return JSON.stringify(createCompactDocumentState(snapshot));
+}
+
+function resetHistoryFromState(state) {
+  const snapshot = cloneDocumentState(state);
+  undoHistory.value = [snapshot];
+  redoHistory.value = [];
+  historyLastSnapshotKey = snapshotKey(snapshot);
+}
+
+function pushHistorySnapshot() {
+  const snapshot = createDocumentSnapshot();
+  const key = snapshotKey(snapshot);
+
+  if (key === historyLastSnapshotKey) {
+    return;
+  }
+
+  undoHistory.value.push(snapshot);
+  historyLastSnapshotKey = key;
+  if (undoHistory.value.length > HISTORY_LIMIT) {
+    undoHistory.value.shift();
+  }
+
+  redoHistory.value = [];
+}
+
 function scheduleSave() {
   window.clearTimeout(saveTimer);
   setStatus("正在自动保存...");
-  const snapshot = cloneDocumentState(toRaw(appState));
+  const snapshot = createCompactDocumentState(createDocumentSnapshot());
   saveTimer = window.setTimeout(async () => {
     try {
       await saveDocument(snapshot);
@@ -397,6 +434,7 @@ function commit(message) {
   if (message) {
     setStatus(message);
   }
+  pushHistorySnapshot();
   scheduleSave();
 }
 
@@ -439,6 +477,32 @@ function clearHighlights() {
   document.querySelectorAll(".is-targeted").forEach((item) => item.classList.remove("is-targeted"));
 }
 
+function scrollTargetIntoView(target) {
+  if (!target) {
+    return;
+  }
+
+  const rail = target.closest(".control-rail");
+  if (!rail) {
+    target.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    return;
+  }
+
+  const railRect = rail.getBoundingClientRect();
+  const targetRect = target.getBoundingClientRect();
+  const topOverflow = targetRect.top - railRect.top;
+  const bottomOverflow = targetRect.bottom - railRect.bottom;
+
+  if (topOverflow < 0) {
+    rail.scrollTo({ top: rail.scrollTop + topOverflow - 12, behavior: "smooth" });
+    return;
+  }
+
+  if (bottomOverflow > 0) {
+    rail.scrollTo({ top: rail.scrollTop + bottomOverflow + 12, behavior: "smooth" });
+  }
+}
+
 function resetAutoTranslationTracking() {
   titleTranslationSource.value = "";
   productNameTranslationSource.value = "";
@@ -455,7 +519,7 @@ function focusEditorTarget(target, message) {
   window.clearTimeout(unhighlightTimer);
 
   target.classList.add("is-targeted");
-  target.scrollIntoView({ behavior: "smooth", block: "center" });
+  scrollTargetIntoView(target);
 
   focusTimer = window.setTimeout(() => {
     const focusable = target.matches("input, textarea, select, button")
@@ -475,13 +539,14 @@ function focusEditorTarget(target, message) {
   setStatus(message);
 }
 
-function focusPageField(key) {
+function focusPageField(pageId, key) {
   const meta = editorTargets[key];
   if (!meta) {
     setStatus("这个预览区域暂未绑定编辑项");
     return;
   }
 
+  selectPage(pageId, { scroll: false, preserveStatus: true });
   activePanel[meta.panel] = true;
   nextTick(() => {
     const target =
@@ -491,7 +556,8 @@ function focusPageField(key) {
   });
 }
 
-function focusFieldEditor(index) {
+function focusFieldEditor(pageId, index) {
+  selectPage(pageId, { scroll: false, preserveStatus: true });
   activePanel.fields = true;
   nextTick(() => {
     const target = fieldCardRefs.value[index];
@@ -500,7 +566,8 @@ function focusFieldEditor(index) {
   });
 }
 
-function focusTermEditor(index) {
+function focusTermEditor(pageId, index) {
+  selectPage(pageId, { scroll: false, preserveStatus: true });
   activePanel.terms = true;
   nextTick(() => {
     const target = termCardRefs.value[index];
@@ -581,25 +648,29 @@ function duplicatePage() {
   commit("已复制当前页");
 }
 
-function selectPage(pageId) {
+function selectPage(pageId, options = {}) {
+  const { scroll = true, preserveStatus = false } = options;
   appState.activePageId = pageId;
   resetAutoTranslationTracking();
   const pageIndex = appState.pages.findIndex((page) => page.id === pageId);
   const pageNumber = pageIndex + 1;
-  setStatus(`已切换到第 ${pageNumber} 页`);
-  showSwitchNotice(`已切换到第 ${pageNumber} 页，正在编辑这一页`);
+  if (!preserveStatus) {
+    setStatus(`已切换到第 ${pageNumber} 页`);
+    showSwitchNotice(`已切换到第 ${pageNumber} 页，正在编辑这一页`);
+  }
   scheduleSave();
-  
-  // 滚动到对应的预览页面
-  nextTick(() => {
-    const pageElement = pageListRef.value[pageIndex];
-    if (pageElement && previewViewportRef.value) {
-      pageElement.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center'
-      });
-    }
-  });
+
+  if (scroll) {
+    nextTick(() => {
+      const pageElement = pageListRef.value[pageIndex];
+      if (pageElement && previewViewportRef.value) {
+        pageElement.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }
+    });
+  }
 }
 
 function deletePage() {
@@ -638,32 +709,29 @@ async function resetDocument() {
   translationCache.clear();
   const next = createDefaultState();
   replaceDocumentState(next);
+  resetHistoryFromState(next);
   setStatus("已恢复默认模板");
   scheduleSave();
 }
 
-function exportJson() {
-  const snapshot = createCompactDocumentState(cloneDocumentState(toRaw(appState)));
-  const blob = new Blob([JSON.stringify(snapshot)], {
-    type: "application/json;charset=utf-8",
-  });
+async function exportZip() {
+  const blob = await exportBackupZip(createDocumentSnapshot());
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
-  const date = new Date().toISOString().slice(0, 10);
 
   link.href = url;
-  link.download = `设备资料单-${date}.json`;
+  link.download = "闲置设备资料单.zip";
   link.click();
 
   URL.revokeObjectURL(url);
-  setStatus("JSON 已导出");
+  setStatus("ZIP 已导出");
 }
 
 function openJsonImport() {
   importFileInputRef.value?.click();
 }
 
-async function importJson(event) {
+async function importDocument(event) {
   const file = event.target.files?.[0];
 
   if (!file) {
@@ -671,24 +739,71 @@ async function importJson(event) {
   }
 
   try {
-    const parsed = JSON.parse(await file.text());
-
-    if (!parsed || !Array.isArray(parsed.pages) || !parsed.pages.length) {
-      throw new Error("JSON 中没有可导入的页面数据");
-    }
-
-    const next = normalizeState(parsed);
+    const next = await importBackupZip(file);
     translationCache.clear();
     replaceDocumentState(next);
-    await saveDocument(cloneDocumentState(toRaw(appState)));
-    setStatus(`已导入 JSON：${next.pages.length} 页`);
-    showSwitchNotice(`已导入 JSON：${next.pages.length} 页`);
+    resetHistoryFromState(next);
+    await saveDocument(createCompactDocumentState(createDocumentSnapshot()));
+    setStatus(`已导入资料包：${next.pages.length} 页`);
+    showSwitchNotice(`已导入资料包：${next.pages.length} 页`);
   } catch (error) {
     console.error(error);
-    setStatus("JSON 导入失败，请确认文件格式正确");
+    setStatus("资料包导入失败，请确认文件格式正确");
   } finally {
     event.target.value = "";
   }
+}
+
+function undoDocument() {
+  if (undoHistory.value.length <= 1) {
+    setStatus("没有可撤销的操作");
+    return;
+  }
+
+  const current = undoHistory.value.pop();
+  if (current) {
+    redoHistory.value.push(cloneDocumentState(current));
+  }
+
+  const previous = undoHistory.value[undoHistory.value.length - 1];
+  replaceDocumentState(cloneDocumentState(previous));
+  historyLastSnapshotKey = snapshotKey(previous);
+  setStatus("已撤销");
+  scheduleSave();
+}
+
+function redoDocument() {
+  const next = redoHistory.value.pop();
+  if (!next) {
+    setStatus("没有可重做的操作");
+    return;
+  }
+
+  const restored = cloneDocumentState(next);
+  undoHistory.value.push(cloneDocumentState(restored));
+  replaceDocumentState(restored);
+  historyLastSnapshotKey = snapshotKey(restored);
+  setStatus("已重做");
+  scheduleSave();
+}
+
+function handleGlobalKeydown(event) {
+  const key = event.key.toLowerCase();
+  const isUndo = (event.ctrlKey || event.metaKey) && !event.shiftKey && key === "z";
+  const isRedo = (event.ctrlKey || event.metaKey) && (key === "y" || (event.shiftKey && key === "z"));
+
+  if (!isUndo && !isRedo) {
+    return;
+  }
+
+  event.preventDefault();
+
+  if (isRedo) {
+    redoDocument();
+    return;
+  }
+
+  undoDocument();
 }
 
 function removeQr() {
@@ -823,8 +938,10 @@ onMounted(async () => {
     appState.version = saved.version;
     appState.activePageId = saved.activePageId;
     appState.pages.splice(0, appState.pages.length, ...saved.pages);
+    resetHistoryFromState(saved);
   } catch (error) {
     console.warn("Could not load saved document, using defaults.", error);
+    resetHistoryFromState(appState);
   }
 
   // #export-root lives in index.html outside Vue, so querySelector is the correct approach here.
@@ -837,6 +954,7 @@ onMounted(async () => {
   };
   window.addEventListener("afterprint", afterPrintHandler);
   window.addEventListener("scroll", handleScroll);
+  window.addEventListener("keydown", handleGlobalKeydown, true);
 
   await nextTick();
 });
@@ -847,6 +965,7 @@ onBeforeUnmount(() => {
     window.removeEventListener("afterprint", afterPrintHandler);
   }
   window.removeEventListener("scroll", handleScroll);
+  window.removeEventListener("keydown", handleGlobalKeydown, true);
   window.clearTimeout(saveTimer);
   window.clearTimeout(noticeTimer);
   window.clearTimeout(focusTimer);
@@ -878,17 +997,17 @@ onBeforeUnmount(() => {
         <button class="action-button" type="button" @click="duplicatePage">复制当前页</button>
         <button class="action-button" type="button" @click="printDocument">打印 / 另存 PDF</button>
         <button class="action-button action-button--danger" type="button" @click="confirmResetDocument">恢复默认模板</button>
-        <button class="action-button" type="button" @click="exportJson">导出 JSON</button>
-        <button class="action-button" type="button" @click="openJsonImport">导入 JSON</button>
+        <button class="action-button" type="button" @click="exportZip">导出 ZIP</button>
+        <button class="action-button" type="button" @click="openJsonImport">导入 ZIP</button>
         <input
           id="equip-sheet-editor-import-json"
           ref="importFileInputRef"
           class="visually-hidden-file"
           name="equip-sheet-editor-import-json"
           type="file"
-          accept="application/json,.json"
-          aria-label="导入 JSON"
-          @change="importJson"
+          accept=".zip,application/zip"
+          aria-label="导入 ZIP"
+          @change="importDocument"
         />
       </section>
 

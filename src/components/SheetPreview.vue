@@ -84,7 +84,7 @@ function hasPreviewValue(field, labelKey, valueKey) {
             class="preview-jump sheet-title-button"
             type="button"
             title="点击编辑中文标题"
-            @click="emit('focus-page-field', 'titleZh')"
+            @click="emit('focus-page-field', props.page.id, 'titleZh')"
           >
             <span class="sheet-title-heading">{{ page.titleZh }}</span>
           </button>
@@ -92,7 +92,7 @@ function hasPreviewValue(field, labelKey, valueKey) {
             class="preview-jump sheet-title-subline"
             type="button"
             title="点击编辑英文标题"
-            @click="emit('focus-page-field', 'titleEn')"
+            @click="emit('focus-page-field', props.page.id, 'titleEn')"
           >
             <n-ellipsis>{{ page.titleEn }}</n-ellipsis>
           </button>
@@ -100,7 +100,7 @@ function hasPreviewValue(field, labelKey, valueKey) {
             class="preview-jump sales-code"
             type="button"
             title="点击编辑销售编号"
-            @click="emit('focus-page-field', 'salesCode')"
+            @click="emit('focus-page-field', props.page.id, 'salesCode')"
           >
             销售编号：{{ page.salesCode }}
             <br />
@@ -110,7 +110,7 @@ function hasPreviewValue(field, labelKey, valueKey) {
             class="preview-jump product-heading product-heading--inline"
             type="button"
             title="点击编辑产品名称"
-            @click="emit('focus-page-field', 'productNameZh')"
+            @click="emit('focus-page-field', props.page.id, 'productNameZh')"
           >
             <n-ellipsis class="product-line">{{ page.productNameZh }}</n-ellipsis>
             <span class="product-divider"> / </span>
@@ -125,7 +125,7 @@ function hasPreviewValue(field, labelKey, valueKey) {
               class="preview-jump contact-block"
               type="button"
               title="点击编辑联系人"
-              @click="emit('focus-page-field', 'contactName')"
+              @click="emit('focus-page-field', props.page.id, 'contactName')"
             >
               <span class="contact-label">联系人 / Contact Person</span>
               <strong class="contact-value">{{ page.contactName }}</strong>
@@ -134,7 +134,7 @@ function hasPreviewValue(field, labelKey, valueKey) {
               class="preview-jump contact-block"
               type="button"
               title="点击编辑联系方式"
-              @click="emit('focus-page-field', 'contactPhone')"
+              @click="emit('focus-page-field', props.page.id, 'contactPhone')"
             >
               <span class="contact-label">联系方式 / Contact Number</span>
               <strong class="contact-value">{{ page.contactPhone }}</strong>
@@ -145,7 +145,7 @@ function hasPreviewValue(field, labelKey, valueKey) {
             class="preview-jump qr-box"
             type="button"
             title="点击编辑二维码"
-            @click="emit('focus-page-field', 'qrImage')"
+            @click="emit('focus-page-field', props.page.id, 'qrImage')"
           >
             <img v-if="page.qrImage" :src="page.qrImage" alt="二维码" />
             <div v-else class="qr-placeholder">
@@ -161,7 +161,7 @@ function hasPreviewValue(field, labelKey, valueKey) {
           class="preview-jump photo-jump"
           type="button"
           title="点击编辑产品图片"
-          @click="emit('focus-page-field', 'productImages')"
+          @click="emit('focus-page-field', props.page.id, 'productImages')"
         >
           <div
             v-if="visibleImages.length"
@@ -192,7 +192,7 @@ function hasPreviewValue(field, labelKey, valueKey) {
               class="detail-item"
               type="button"
               title="点击跳到左侧字段编辑"
-              @click="emit('focus-field', index)"
+              @click="emit('focus-field', props.page.id, index)"
             >
               <div class="detail-copy">
                 <n-ellipsis class="detail-main">{{ getPreviewLine(field, "zhLabel", "zhValue", "：") }}</n-ellipsis>
@@ -211,7 +211,7 @@ function hasPreviewValue(field, labelKey, valueKey) {
               :class="{ 'term--danger': term.tone === 'danger' }"
               type="button"
               title="点击编辑这条底部条款"
-              @click="emit('focus-term', index)"
+              @click="emit('focus-term', props.page.id, index)"
             >
               <n-ellipsis class="term-label">{{ term.label }}</n-ellipsis>
               <n-ellipsis class="term-value">{{ term.text }}</n-ellipsis>
@@ -225,7 +225,7 @@ function hasPreviewValue(field, labelKey, valueKey) {
           class="preview-jump address"
           type="button"
           title="点击编辑库房地址"
-          @click="emit('focus-page-field', 'warehouseAddress')"
+          @click="emit('focus-page-field', props.page.id, 'warehouseAddress')"
         >
           {{ page.warehouseAddress }}
         </button>
