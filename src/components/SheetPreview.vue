@@ -11,6 +11,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  pageIndex: {
+    type: Number,
+    default: 0,
+  },
 });
 
 const emit = defineEmits(["focus-page-field", "focus-field", "focus-term", "click"]);
@@ -77,6 +81,7 @@ function hasPreviewValue(field, labelKey, valueKey) {
   <article class="sheet-page" :class="{ 'sheet-page--active': isActive }">
     <div class="sheet-page__click-overlay" @click="handlePageClick"></div>
     <div class="sheet-page__grain"></div>
+    <div class="sheet-page__badge">{{ pageIndex + 1 }}</div>
     <div class="sheet-inner">
       <header class="sheet-top">
         <div class="sheet-title">

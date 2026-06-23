@@ -292,8 +292,8 @@ const statusMessage = ref("已准备好");
 const switchNotice = ref("");
 const HISTORY_LIMIT = 80;
 const SHEET_PAGE_HEIGHT = 794;
-const PREVIEW_PAGE_GAP = 18;
-const SWITCH_NOTICE_PAGE_OFFSET = 24;
+const PREVIEW_PAGE_GAP = 28;
+const SWITCH_NOTICE_PAGE_OFFSET = 32;
 const activePanel = reactive({
   basic: true,
   product: true,
@@ -1375,6 +1375,7 @@ onBeforeUnmount(() => {
             :key="page.id"
             :ref="(el) => (pageListRef[index] = el?.$el ?? null)"
             :page="page"
+            :page-index="index"
             :is-active="page.id === activePage.id"
             @focus-page-field="focusPageField"
             @focus-field="focusFieldEditor"

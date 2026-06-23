@@ -1,18 +1,32 @@
+# dependencies
 node_modules/
+
+# build output
 dist/
+
+# logs
 *.log
+
+# macOS
 .DS_Store
-memory/
-reasonix.toml
+
+# Windows
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# editors / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# AI / Claude Code
+.claude/
 
 # deployment
 .vercel
-
-# code intelligence
-.codegraph/
-
-# ai workspace
-.reasonix/
 
 # environment
 .env
