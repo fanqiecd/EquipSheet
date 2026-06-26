@@ -188,12 +188,39 @@ button:disabled {
 .section-button,
 .ghost-button,
 .page-pill {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   transition:
     transform 0.24s ease,
     box-shadow 0.24s ease,
     border-color 0.2s ease,
     background-color 0.2s ease,
     color 0.2s ease;
+}
+
+.action-button::before,
+.section-button::before,
+.ghost-button::before,
+.page-pill::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(90deg, rgba(31, 106, 82, 0.14), rgba(31, 106, 82, 0.04));
+  transform: translateX(-105%);
+  transition: transform 0.28s ease;
+}
+
+.action-button:hover::before,
+.section-button:hover::before,
+.ghost-button:hover::before,
+.page-pill:hover::before {
+  transform: translateX(0);
+}
+
+button:disabled::before {
+  transform: translateX(-105%) !important;
 }
 
 .action-button,
@@ -945,6 +972,7 @@ select:focus {
   scroll-snap-type: y mandatory;
   scroll-behavior: smooth;
   scroll-padding-block: 40px;
+  overscroll-behavior: contain;
   padding: 0;
   background:
     radial-gradient(ellipse at 25% 30%, rgba(189, 221, 204, 0.22), transparent 55%),
@@ -1001,7 +1029,7 @@ select:focus {
   width: 1123px;
   height: 794px;
   overflow: hidden;
-  border: 1px solid rgba(62, 49, 37, 0.18);
+  border: 3px solid rgba(62, 49, 37, 0.12);
   background:
     linear-gradient(155deg, rgba(255, 252, 245, 0.96), rgba(245, 238, 228, 0.94)),
     radial-gradient(circle at top right, rgba(31, 106, 82, 0.16), transparent 18rem),
@@ -1015,6 +1043,7 @@ select:focus {
   cursor: pointer;
   scroll-snap-align: center;
   scroll-snap-stop: always;
+  will-change: transform;
   transition:
     transform 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94),
     box-shadow 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94),
@@ -1766,18 +1795,21 @@ select:focus {
   }
 
   #export-root .sheet-page {
+    display: block;
     width: 297mm;
     height: 210mm;
     margin: 0;
     border: 0;
     box-shadow: none;
-    break-before: page;
-    page-break-before: always;
-  }
-
-  #export-root .sheet-page:first-child {
     break-before: avoid;
     page-break-before: avoid;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  #export-root .sheet-page + .sheet-page {
+    break-before: page;
+    page-break-before: always;
   }
 
   #export-root .sheet-page--active {

@@ -92,6 +92,8 @@ const previewViewportRef = ref(null);
 const previewStageRef = ref(null);
 const fieldCardRefs = ref({});
 const termCardRefs = ref({});
+let previewWheelTimer = 0;
+let previewWheelLocked = false;
 
 // ── Page drag reorder ──
 const dragFromIndex = ref(-1);
@@ -446,6 +448,7 @@ function handlePreviewWheel(e) {
   if (pages.length <= 1) return;
 
   e.preventDefault();
+  if (previewWheelLocked) return;
 
   const stageRect = stage.getBoundingClientRect();
   const viewCenter = stageRect.top + stageRect.height / 2;
@@ -462,6 +465,9 @@ function handlePreviewWheel(e) {
   const target = Math.max(0, Math.min(pages.length - 1, closest + dir));
   if (target === closest) return;
 
+  previewWheelLocked = true;
+  clearTimeout(previewWheelTimer);
+  previewWheelTimer = setTimeout(() => { previewWheelLocked = false; }, 520);
   pages[target].scrollIntoView({ behavior: "smooth", block: "center" });
 
   const targetPage = appState.pages[target];
@@ -503,6 +509,7 @@ onBeforeUnmount(() => {
   clearTimeout(noticeTimer);
   clearTimeout(focusTimer);
   clearTimeout(unhighlightTimer);
+  clearTimeout(previewWheelTimer);
   docCleanup();
 });
 </script>
