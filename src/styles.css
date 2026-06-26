@@ -388,6 +388,17 @@ details[open] > .panel-summary .panel-toggle-btn::before {
   color: rgba(239, 255, 246, 0.72);
 }
 
+.page-pill--dragging {
+  opacity: 0.4;
+  transform: scale(0.95);
+}
+
+.page-pill--drag-over {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(31, 106, 82, 0.25), 0 10px 22px rgba(18, 58, 44, 0.18);
+  transform: scale(1.05);
+}
+
 .inline-actions {
   display: flex;
   flex-wrap: wrap;
@@ -931,6 +942,9 @@ select:focus {
   justify-content: center;
   height: 100vh;
   overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
+  scroll-padding-block: 40px;
   padding: 0;
   background:
     radial-gradient(ellipse at 25% 30%, rgba(189, 221, 204, 0.22), transparent 55%),
@@ -999,6 +1013,8 @@ select:focus {
     0 28px 56px rgba(60, 42, 26, 0.12),
     0 48px 72px rgba(60, 42, 26, 0.08);
   cursor: pointer;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
   transition:
     transform 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94),
     box-shadow 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94),
@@ -1749,33 +1765,38 @@ select:focus {
     pointer-events: auto;
   }
 
-  .sheet-page {
+  #export-root .sheet-page {
     width: 297mm;
     height: 210mm;
     margin: 0;
     border: 0;
     box-shadow: none;
-    break-after: page;
-    page-break-after: always;
+    break-before: page;
+    page-break-before: always;
   }
 
-  .sheet-page--active {
+  #export-root .sheet-page:first-child {
+    break-before: avoid;
+    page-break-before: avoid;
+  }
+
+  #export-root .sheet-page--active {
     border: 0 !important;
     box-shadow: none !important;
     transform: none !important;
   }
 
-  .sheet-page,
-  .sheet-page *,
-  .sheet-page::before {
+  #export-root .sheet-page,
+  #export-root .sheet-page *,
+  #export-root .sheet-page::before {
     animation: none !important;
     transition: none !important;
     box-shadow: none !important;
   }
 
-  .sheet-page:last-child {
-    break-after: auto;
-    page-break-after: auto;
+  #export-root .sheet-page:last-child {
+    break-after: avoid;
+    page-break-after: avoid;
   }
 
   .sheet-inner {

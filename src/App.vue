@@ -27,7 +27,7 @@ const {
   appState, activePage, activePageIndex, undoHistory, redoHistory, switchNoticeStyle,
   commit, scheduleSave, createDocumentSnapshot,
   loadFromStorage, importState,
-  addPage, duplicatePage, selectPage, deletePage, clearPage, resetDocument,
+  addPage, duplicatePage, selectPage, movePage, deletePage, clearPage, resetDocument,
   undoDocument, redoDocument,
   addField, deleteField, moveField,
   addTerm, deleteTerm,
@@ -89,8 +89,50 @@ const exportRootRef = ref(null);
 const importFileInputRef = ref(null);
 const pageListRef = ref([]);
 const previewViewportRef = ref(null);
+const previewStageRef = ref(null);
 const fieldCardRefs = ref({});
 const termCardRefs = ref({});
+
+// ── Page drag reorder ──
+const dragFromIndex = ref(-1);
+const dragOverIndex = ref(-1);
+
+function onPageDragStart(e, index) {
+  dragFromIndex.value = index;
+  e.dataTransfer.effectAllowed = "move";
+  e.dataTransfer.setData("text/plain", String(index));
+  e.currentTarget.classList.add("page-pill--dragging");
+}
+
+function onPageDragOver(e, index) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+  if (index !== dragFromIndex.value) {
+    dragOverIndex.value = index;
+  }
+}
+
+function onPageDragLeave() {
+  dragOverIndex.value = -1;
+}
+
+function onPageDrop(e, index) {
+  e.preventDefault();
+  const from = dragFromIndex.value;
+  const to = index;
+  if (from !== to && from >= 0) {
+    movePage(from, to);
+    setStatus(`页面顺序已更新`);
+  }
+  dragFromIndex.value = -1;
+  dragOverIndex.value = -1;
+}
+
+function onPageDragEnd(e) {
+  e.currentTarget.classList.remove("page-pill--dragging");
+  dragFromIndex.value = -1;
+  dragOverIndex.value = -1;
+}
 
 // ── Print ──
 const {
@@ -395,6 +437,42 @@ const toneOptions = [
 
 const previewPages = computed(() => appState.pages);
 
+// ── Preview wheel: one page per scroll gesture, syncs editor ──
+function handlePreviewWheel(e) {
+  const stage = previewStageRef.value;
+  if (!stage) return;
+
+  const pages = stage.querySelectorAll(".sheet-page");
+  if (pages.length <= 1) return;
+
+  e.preventDefault();
+
+  const stageRect = stage.getBoundingClientRect();
+  const viewCenter = stageRect.top + stageRect.height / 2;
+
+  let closest = 0;
+  let closestDist = Infinity;
+  pages.forEach((page, i) => {
+    const r = page.getBoundingClientRect();
+    const dist = Math.abs(r.top + r.height / 2 - viewCenter);
+    if (dist < closestDist) { closestDist = dist; closest = i; }
+  });
+
+  const dir = e.deltaY > 0 ? 1 : -1;
+  const target = Math.max(0, Math.min(pages.length - 1, closest + dir));
+  if (target === closest) return;
+
+  pages[target].scrollIntoView({ behavior: "smooth", block: "center" });
+
+  const targetPage = appState.pages[target];
+  if (targetPage && targetPage.id !== activePage.value?.id) {
+    selectPage(targetPage.id);
+    resetAutoTranslationTracking();
+    setStatus(`已切换到第 ${target + 1} 页`);
+    showSwitchNotice(`已切换到第 ${target + 1} 页，正在编辑这一页`);
+  }
+}
+
 // ── Lifecycle ──
 onMounted(async () => {
   try {
@@ -408,6 +486,9 @@ onMounted(async () => {
   window.addEventListener("afterprint", handleAfterPrint);
   window.addEventListener("scroll", handleScroll);
   window.addEventListener("keydown", handleGlobalKeydown, true);
+  if (previewStageRef.value) {
+    previewStageRef.value.addEventListener("wheel", handlePreviewWheel, { passive: false });
+  }
   await nextTick();
 });
 
@@ -416,6 +497,9 @@ onBeforeUnmount(() => {
   window.removeEventListener("afterprint", handleAfterPrint);
   window.removeEventListener("scroll", handleScroll);
   window.removeEventListener("keydown", handleGlobalKeydown, true);
+  if (previewStageRef.value) {
+    previewStageRef.value.removeEventListener("wheel", handlePreviewWheel);
+  }
   clearTimeout(noticeTimer);
   clearTimeout(focusTimer);
   clearTimeout(unhighlightTimer);
@@ -477,9 +561,18 @@ onBeforeUnmount(() => {
             v-for="(page, index) in appState.pages"
             :key="page.id"
             class="page-pill"
-            :class="{ 'page-pill--active': page.id === appState.activePageId }"
+            :class="{
+              'page-pill--active': page.id === appState.activePageId,
+              'page-pill--drag-over': index === dragOverIndex,
+            }"
             type="button"
+            draggable="true"
             @click="selectPageWithStatus(page.id)"
+            @dragstart="onPageDragStart($event, index)"
+            @dragover="onPageDragOver($event, index)"
+            @dragleave="onPageDragLeave"
+            @drop="onPageDrop($event, index)"
+            @dragend="onPageDragEnd"
           >
             <n-ellipsis>
               <span>第 {{ index + 1 }} 页</span>
@@ -813,7 +906,7 @@ onBeforeUnmount(() => {
       </details>
     </aside>
 
-    <section class="preview-stage">
+    <section class="preview-stage" ref="previewStageRef">
       <div class="preview-viewport" ref="previewViewportRef">
         <div class="preview-page-stack">
           <transition name="notice-fade">

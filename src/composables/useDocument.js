@@ -110,6 +110,16 @@ export function useDocument() {
     scheduleSave();
   }
 
+  function movePage(fromIndex, toIndex) {
+    const pages = appState.pages;
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return;
+    if (fromIndex >= pages.length || toIndex >= pages.length) return;
+    pushHistorySnapshot();
+    const [moved] = pages.splice(fromIndex, 1);
+    pages.splice(toIndex, 0, moved);
+    commit();
+  }
+
   function deletePage() {
     if (appState.pages.length === 1) return;
     const currentIndex = activePageIndex.value;
@@ -250,6 +260,7 @@ export function useDocument() {
     addPage,
     duplicatePage,
     selectPage,
+    movePage,
     deletePage,
     clearPage,
     resetDocument,
